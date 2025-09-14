@@ -1,0 +1,85 @@
+import { WebSocketServer as WSServer, WebSocket } from 'ws';
+import { Server } from 'http';
+
+export class WebSocketServer {
+  private wss: WSServer | null = null;
+  private clients: Set<WebSocket> = new Set();
+
+  public initialize(server: Server): void {
+    this.wss = new WSServer({ server, path: '/ws' });
+
+    this.wss.on('connection', (ws: WebSocket) => {
+      console.log('New WebSocket client connected');
+      this.clients.add(ws);
+
+      ws.on('message', (message: string) => {
+        try {
+          const data = JSON.parse(message.toString());
+          this.handleMessage(ws, data);
+        } catch (error) {
+          console.error('Invalid WebSocket message:', error);
+        }
+      });
+
+      ws.on('close', () => {
+        console.log('WebSocket client disconnected');
+        this.clients.delete(ws);
+      });
+
+      ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+        this.clients.delete(ws);
+      });
+
+      // Send initial connection confirmation
+      ws.send(JSON.stringify({ type: 'connected', timestamp: Date.now() }));
+    });
+  }
+
+  private handleMessage(ws: WebSocket, data: any): void {
+    switch (data.type) {
+      case 'ping':
+        ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        break;
+      case 'subscribe':
+        // Handle subscription to specific templates or updates
+        console.log('Client subscribed to updates');
+        break;
+      default:
+        console.log('Unknown message type:', data.type);
+    }
+  }
+
+  public broadcastFrame(frameData: Buffer): void {
+    // Convert frame to base64 for transmission
+    const base64Frame = frameData.toString('base64');
+    const message = JSON.stringify({
+      type: 'frame',
+      data: base64Frame,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  public broadcastUpdate(updateType: string, data: any): void {
+    const message = JSON.stringify({
+      type: 'update',
+      updateType,
+      data,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+}
+
+export const websocketServer = new WebSocketServer();
