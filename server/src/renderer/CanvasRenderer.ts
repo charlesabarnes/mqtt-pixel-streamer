@@ -39,8 +39,9 @@ export class CanvasRenderer {
       await this.renderElement(element, dataValues);
     }
 
-    // Get raw RGBA buffer
-    return this.canvas.toBuffer('raw');
+    // Get raw RGBA buffer and swap red/blue channels to fix color display
+    const rawBuffer = this.canvas.toBuffer('raw');
+    return this.swapRedBlueChannels(rawBuffer);
   }
 
   private async renderElement(element: Element, dataValues?: Record<string, any>): Promise<void> {
@@ -145,6 +146,24 @@ export class CanvasRenderer {
     return element.position;
   }
 
+  private swapRedBlueChannels(buffer: Buffer): Buffer {
+    // Create a copy of the buffer to avoid modifying the original
+    const swappedBuffer = Buffer.from(buffer);
+
+    // RGBA format: each pixel is 4 bytes (R, G, B, A)
+    // We need to swap R (index 0) with B (index 2) for each pixel
+    for (let i = 0; i < swappedBuffer.length; i += 4) {
+      const red = swappedBuffer[i];     // Original red channel
+      const blue = swappedBuffer[i + 2]; // Original blue channel
+
+      swappedBuffer[i] = blue;      // Put blue in red position
+      swappedBuffer[i + 2] = red;   // Put red in blue position
+      // Green (i + 1) and Alpha (i + 3) remain unchanged
+    }
+
+    return swappedBuffer;
+  }
+
 
   public async renderTestFrame(): Promise<Buffer> {
     // Clear canvas
@@ -171,7 +190,9 @@ export class CanvasRenderer {
     this.ctx.lineWidth = 1;
     this.ctx.strokeRect(0, 0, DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1);
 
-    return this.canvas.toBuffer('raw');
+    // Get raw RGBA buffer and swap red/blue channels to fix color display
+    const rawBuffer = this.canvas.toBuffer('raw');
+    return this.swapRedBlueChannels(rawBuffer);
   }
 }
 
