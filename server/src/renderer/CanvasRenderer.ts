@@ -6,7 +6,8 @@ import {
   DISPLAY_HEIGHT,
   FRAME_SIZE,
   Animation,
-  Position
+  Position,
+  DataFormatter
 } from '@mqtt-pixel-streamer/shared';
 import path from 'path';
 
@@ -66,24 +67,26 @@ export class CanvasRenderer {
 
     const style = element.style || {};
     this.ctx.fillStyle = style.color || '#FFFFFF';
-    this.ctx.font = `${style.fontSize || 12}px ${style.fontFamily || 'sans-serif'}`;
+    // Use monospace as default to match template specification
+    this.ctx.font = `${style.fontSize || 12}px ${style.fontFamily || 'monospace'}`;
     this.ctx.fillText(element.text, pos.x, pos.y);
   }
 
   private renderDataField(element: Element, pos: Position, dataValues?: Record<string, any>): void {
     if (!element.dataSource) return;
 
-    let value = this.getDataValue(element.dataSource, dataValues);
-
-    // Apply format if provided
-    if (element.format) {
-      value = this.formatValue(value, element.format);
-    }
+    // Use shared formatter for consistent rendering
+    const value = DataFormatter.processDataElement(
+      element.dataSource,
+      dataValues,
+      (element as any).format
+    );
 
     const style = element.style || {};
     this.ctx.fillStyle = style.color || '#FFFFFF';
-    this.ctx.font = `${style.fontSize || 12}px ${style.fontFamily || 'sans-serif'}`;
-    this.ctx.fillText(String(value), pos.x, pos.y);
+    // Use monospace as default to match template specification
+    this.ctx.font = `${style.fontSize || 12}px ${style.fontFamily || 'monospace'}`;
+    this.ctx.fillText(value, pos.x, pos.y);
   }
 
   private async renderIcon(element: Element, pos: Position): Promise<void> {
@@ -142,36 +145,6 @@ export class CanvasRenderer {
     return element.position;
   }
 
-  private getDataValue(dataSource: string, dataValues?: Record<string, any>): any {
-    if (!dataValues) return dataSource;
-
-    const parts = dataSource.split('.');
-    let value: any = dataValues;
-
-    for (const part of parts) {
-      value = value?.[part];
-      if (value === undefined) return dataSource;
-    }
-
-    return value;
-  }
-
-  private formatValue(value: any, format: string): string {
-    // Simple formatting logic
-    if (format === 'HH:MM' && value instanceof Date) {
-      return value.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-    }
-
-    if (format.includes('°F') && typeof value === 'number') {
-      return `${value}°F`;
-    }
-
-    return String(value);
-  }
 
   public async renderTestFrame(): Promise<Buffer> {
     // Clear canvas

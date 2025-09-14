@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { Template } from '@mqtt-pixel-streamer/shared';
+import { Template, DataFormatter } from '@mqtt-pixel-streamer/shared';
 import { canvasRenderer } from '../../renderer/CanvasRenderer';
 import { mqttPublisher } from '../../mqtt/MQTTClient';
 import { websocketServer } from '../../websocket/WebSocketServer';
@@ -20,6 +20,7 @@ let templates: Template[] = [
         type: 'data',
         position: { x: 2, y: 16 },
         dataSource: 'time',
+        format: 'time',
         style: {
           color: '#00FF00',
           fontSize: 14,
@@ -32,6 +33,7 @@ let templates: Template[] = [
         type: 'data',
         position: { x: 2, y: 28 },
         dataSource: 'date',
+        format: 'date',
         style: {
           color: '#FFFF00',
           fontSize: 10,
@@ -97,7 +99,10 @@ router.delete('/:id', (req: Request, res: Response) => {
   res.status(204).send();
 });
 
-// Publish template frame
+// Active publishing intervals
+const activePublishers = new Map<number, NodeJS.Timeout>();
+
+// Publish template frame (single frame)
 router.post('/:id/publish', async (req: Request, res: Response) => {
   const template = templates.find(t => t.id === parseInt(req.params.id));
   if (!template) {
@@ -105,15 +110,8 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
   }
 
   try {
-    // Get current data values
-    const dataValues = {
-      time: new Date(),
-      date: new Date(),
-      weather: {
-        temp: 72,
-        condition: 'Sunny'
-      }
-    };
+    // Get current data values using shared utility
+    const dataValues = DataFormatter.getCurrentDataValues();
 
     // Render frame
     const frameData = await canvasRenderer.renderTemplate(template, dataValues);
@@ -137,5 +135,97 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
     });
   }
 });
+
+// Start continuous publishing
+router.post('/:id/start-publishing', async (req: Request, res: Response) => {
+  const templateId = parseInt(req.params.id);
+  const template = templates.find(t => t.id === templateId);
+
+  if (!template) {
+    return res.status(404).json({ error: 'Template not found' });
+  }
+
+  // Stop existing publisher if running
+  if (activePublishers.has(templateId)) {
+    clearInterval(activePublishers.get(templateId)!);
+  }
+
+  const publishFrame = async () => {
+    try {
+      // Get current data values using shared utility
+      const dataValues = DataFormatter.getCurrentDataValues();
+
+      // Get fresh template data in case it was updated
+      const currentTemplate = templates.find(t => t.id === templateId);
+      if (!currentTemplate) return;
+
+      // Render frame
+      const frameData = await canvasRenderer.renderTemplate(currentTemplate, dataValues);
+
+      // Publish to MQTT
+      await mqttPublisher.publishFrame(frameData);
+
+      // Broadcast to WebSocket clients
+      websocketServer.broadcastFrame(frameData);
+    } catch (error) {
+      console.error('Failed to publish frame in continuous mode:', error);
+    }
+  };
+
+  // Start publishing at template's update interval
+  const interval = setInterval(publishFrame, template.updateInterval || 1000);
+  activePublishers.set(templateId, interval);
+
+  // Publish first frame immediately
+  await publishFrame();
+
+  res.json({
+    success: true,
+    message: 'Continuous publishing started',
+    interval: template.updateInterval || 1000
+  });
+});
+
+// Stop continuous publishing
+router.post('/:id/stop-publishing', (req: Request, res: Response) => {
+  const templateId = parseInt(req.params.id);
+
+  if (activePublishers.has(templateId)) {
+    clearInterval(activePublishers.get(templateId)!);
+    activePublishers.delete(templateId);
+
+    res.json({
+      success: true,
+      message: 'Continuous publishing stopped'
+    });
+  } else {
+    res.status(404).json({ error: 'No active publishing found for this template' });
+  }
+});
+
+// Get publishing status
+router.get('/:id/publishing-status', (req: Request, res: Response) => {
+  const templateId = parseInt(req.params.id);
+  const isPublishing = activePublishers.has(templateId);
+
+  res.json({
+    isPublishing,
+    templateId
+  });
+});
+
+// Export function to update templates from WebSocket
+export const updateTemplateInStore = (templateId: number, templateData: any) => {
+  const index = templates.findIndex(t => t.id === templateId);
+  if (index !== -1) {
+    templates[index] = {
+      ...templates[index],
+      ...templateData,
+      id: templateId,
+      updatedAt: new Date()
+    };
+    console.log(`Updated template ${templateId} in store`);
+  }
+};
 
 export default router;

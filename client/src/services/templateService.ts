@@ -47,6 +47,21 @@ class TemplateService {
     const response = await axios.get(`${API_BASE}/test`);
     return response.data;
   }
+
+  async startPublishing(templateId: number): Promise<any> {
+    const response = await axios.post(`${API_BASE}/templates/${templateId}/start-publishing`);
+    return response.data;
+  }
+
+  async stopPublishing(templateId: number): Promise<any> {
+    const response = await axios.post(`${API_BASE}/templates/${templateId}/stop-publishing`);
+    return response.data;
+  }
+
+  async getPublishingStatus(templateId: number): Promise<any> {
+    const response = await axios.get(`${API_BASE}/templates/${templateId}/publishing-status`);
+    return response.data;
+  }
 }
 
 export const templateService = new TemplateService();

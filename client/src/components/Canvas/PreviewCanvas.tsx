@@ -1,10 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Box, Typography, Button, IconButton } from '@mui/material';
+import { Box, Typography, Button, IconButton, Switch, FormControlLabel, Chip } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { Template, DISPLAY_WIDTH, DISPLAY_HEIGHT } from '@mqtt-pixel-streamer/shared';
+import RadioIcon from '@mui/icons-material/Radio';
+import { Template, DISPLAY_WIDTH, DISPLAY_HEIGHT, DataFormatter } from '@mqtt-pixel-streamer/shared';
 import { websocketService } from '../../services/websocketService';
+import { templateService } from '../../services/templateService';
 
 interface PreviewCanvasProps {
   template: Template | null;
@@ -19,22 +21,37 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [frameCount, setFrameCount] = useState(0);
+  const [isLivePublishing, setIsLivePublishing] = useState(false);
+  const [publishingFrameCount, setPublishingFrameCount] = useState(0);
   const animationRef = useRef<number>();
 
   useEffect(() => {
     // Subscribe to WebSocket frame updates
-    const unsubscribe = websocketService.onFrame((frameData) => {
+    const unsubscribeFrames = websocketService.onFrame((frameData) => {
       renderFrame(frameData);
       setFrameCount((prev) => prev + 1);
+      if (isLivePublishing) {
+        setPublishingFrameCount((prev) => prev + 1);
+      }
+    });
+
+    // Subscribe to publishing status updates
+    const unsubscribeUpdates = websocketService.onUpdate((type, data) => {
+      if (type === 'publishing_started' && data.templateId === template?.id) {
+        setIsLivePublishing(true);
+      } else if (type === 'publishing_stopped' && data.templateId === template?.id) {
+        setIsLivePublishing(false);
+      }
     });
 
     return () => {
-      unsubscribe();
+      unsubscribeFrames();
+      unsubscribeUpdates();
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [template?.id, isLivePublishing]);
 
   useEffect(() => {
     if (isRunning && template) {
@@ -114,7 +131,13 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           }
           break;
         case 'data':
-          const value = getDataValue(element.dataSource);
+          // Use shared formatter for consistent rendering with backend
+          const dataValues = DataFormatter.getCurrentDataValues();
+          const value = DataFormatter.processDataElement(
+            element.dataSource || '',
+            dataValues,
+            (element as any).format
+          );
           ctx.fillText(value, element.position.x, element.position.y);
           break;
         case 'shape':
@@ -124,26 +147,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     });
   };
 
-  const getDataValue = (dataSource?: string): string => {
-    if (!dataSource) return '';
-
-    switch (dataSource) {
-      case 'time':
-        return new Date().toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        });
-      case 'date':
-        return new Date().toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        });
-      default:
-        return dataSource;
-    }
-  };
 
   const renderShape = (ctx: CanvasRenderingContext2D, element: any) => {
     const size = element.size || { width: 10, height: 10 };
@@ -185,21 +188,81 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     renderTemplate();
   };
 
+  const handleToggleLivePublishing = async () => {
+    if (!template?.id) return;
+
+    try {
+      if (isLivePublishing) {
+        await templateService.stopPublishing(template.id);
+        websocketService.stopPublishing(template.id);
+        setIsLivePublishing(false);
+        setPublishingFrameCount(0);
+      } else {
+        await templateService.startPublishing(template.id);
+        websocketService.startPublishing(template.id);
+        setIsLivePublishing(true);
+      }
+    } catch (error) {
+      console.error('Failed to toggle live publishing:', error);
+    }
+  };
+
+  // Check publishing status when template changes
+  useEffect(() => {
+    const checkPublishingStatus = async () => {
+      if (template?.id) {
+        try {
+          const status = await templateService.getPublishingStatus(template.id);
+          setIsLivePublishing(status.isPublishing);
+          if (!status.isPublishing) {
+            setPublishingFrameCount(0);
+          }
+        } catch (error) {
+          console.error('Failed to check publishing status:', error);
+        }
+      }
+    };
+
+    checkPublishingStatus();
+  }, [template?.id]);
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
           Preview (128×32)
         </Typography>
-        <Typography variant="body2" sx={{ mr: 2 }}>
-          Frames: {frameCount}
-        </Typography>
-        <IconButton onClick={handleRefresh}>
-          <RefreshIcon />
-        </IconButton>
-        <IconButton onClick={onTogglePreview}>
-          {isRunning ? <PauseIcon /> : <PlayArrowIcon />}
-        </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="body2">
+            Preview: {frameCount} frames
+          </Typography>
+          {isLivePublishing && (
+            <Chip
+              icon={<RadioIcon />}
+              label={`Live: ${publishingFrameCount}`}
+              color="success"
+              size="small"
+            />
+          )}
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isLivePublishing}
+                onChange={handleToggleLivePublishing}
+                color="primary"
+                disabled={!template?.id}
+              />
+            }
+            label="Live"
+            sx={{ mr: 1 }}
+          />
+          <IconButton onClick={handleRefresh}>
+            <RefreshIcon />
+          </IconButton>
+          <IconButton onClick={onTogglePreview}>
+            {isRunning ? <PauseIcon /> : <PlayArrowIcon />}
+          </IconButton>
+        </Box>
       </Box>
 
       <Box

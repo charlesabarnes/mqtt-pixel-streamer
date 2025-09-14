@@ -85,10 +85,17 @@ function App() {
       el.id === elementId ? { ...el, ...updates } : el
     );
 
-    setCurrentTemplate({
+    const updatedTemplate = {
       ...currentTemplate,
       elements: updatedElements,
-    });
+    };
+
+    setCurrentTemplate(updatedTemplate);
+
+    // Send template update to server for live publishing
+    if (currentTemplate.id) {
+      websocketService.sendTemplateUpdate(currentTemplate.id, updatedTemplate);
+    }
   };
 
   const handleAddElement = () => {
@@ -106,24 +113,37 @@ function App() {
       visible: true,
     };
 
-    setCurrentTemplate({
+    const updatedTemplate = {
       ...currentTemplate,
       elements: [...currentTemplate.elements, newElement],
-    });
+    };
 
+    setCurrentTemplate(updatedTemplate);
     setSelectedElementId(newElement.id);
+
+    // Send template update to server for live publishing
+    if (currentTemplate.id) {
+      websocketService.sendTemplateUpdate(currentTemplate.id, updatedTemplate);
+    }
   };
 
   const handleDeleteElement = (elementId: string) => {
     if (!currentTemplate) return;
 
-    setCurrentTemplate({
+    const updatedTemplate = {
       ...currentTemplate,
       elements: currentTemplate.elements.filter((el) => el.id !== elementId),
-    });
+    };
+
+    setCurrentTemplate(updatedTemplate);
 
     if (selectedElementId === elementId) {
       setSelectedElementId(null);
+    }
+
+    // Send template update to server for live publishing
+    if (currentTemplate.id) {
+      websocketService.sendTemplateUpdate(currentTemplate.id, updatedTemplate);
     }
   };
 
@@ -193,11 +213,15 @@ function App() {
               <Paper sx={{ p: 2 }}>
                 <TemplateSettings
                   template={currentTemplate}
-                  onUpdate={(updates) =>
-                    setCurrentTemplate(
-                      currentTemplate ? { ...currentTemplate, ...updates } : null
-                    )
-                  }
+                  onUpdate={(updates) => {
+                    const updatedTemplate = currentTemplate ? { ...currentTemplate, ...updates } : null;
+                    setCurrentTemplate(updatedTemplate);
+
+                    // Send template update to server for live publishing
+                    if (updatedTemplate?.id) {
+                      websocketService.sendTemplateUpdate(updatedTemplate.id, updatedTemplate);
+                    }
+                  }}
                 />
               </Paper>
             </Grid>

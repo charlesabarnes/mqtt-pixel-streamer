@@ -45,8 +45,43 @@ export class WebSocketServer {
         // Handle subscription to specific templates or updates
         console.log('Client subscribed to updates');
         break;
+      case 'template_update':
+        // Handle template updates from frontend
+        this.handleTemplateUpdate(data.templateId, data.template);
+        break;
+      case 'start_publishing':
+        // Forward publishing control to other clients
+        this.broadcastUpdate('publishing_started', { templateId: data.templateId });
+        break;
+      case 'stop_publishing':
+        // Forward publishing control to other clients
+        this.broadcastUpdate('publishing_stopped', { templateId: data.templateId });
+        break;
       default:
         console.log('Unknown message type:', data.type);
+    }
+  }
+
+  private handleTemplateUpdate(templateId: number, templateData: any): void {
+    console.log(`Received template update for template ${templateId}`);
+
+    // Broadcast template update to all connected clients
+    this.broadcastUpdate('template_updated', {
+      templateId,
+      template: templateData,
+      timestamp: Date.now()
+    });
+
+    // Update the in-memory template store
+    this.updateInMemoryTemplate(templateId, templateData);
+  }
+
+  private updateInMemoryTemplate(templateId: number, templateData: any): void {
+    // This is a workaround since we can't directly import the templates array
+    // In a real application, this would be handled through a proper service layer
+    const { updateTemplateInStore } = require('../api/routes/templates');
+    if (updateTemplateInStore) {
+      updateTemplateInStore(templateId, templateData);
     }
   }
 

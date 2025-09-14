@@ -2,10 +2,12 @@ import { io, Socket } from 'socket.io-client';
 
 class WebSocketService {
   private socket: Socket | null = null;
+  private ws: WebSocket | null = null;
   private frameCallbacks: ((frameData: string) => void)[] = [];
+  private updateCallbacks: ((type: string, data: any) => void)[] = [];
 
   connect(): void {
-    if (this.socket) return;
+    if (this.ws) return;
 
     // Connect to WebSocket using native WebSocket (not Socket.IO)
     this.initializeWebSocket();
@@ -13,14 +15,14 @@ class WebSocketService {
 
   private initializeWebSocket(): void {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+    this.ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
-    ws.onopen = () => {
+    this.ws.onopen = () => {
       console.log('WebSocket connected');
-      ws.send(JSON.stringify({ type: 'subscribe' }));
+      this.ws!.send(JSON.stringify({ type: 'subscribe' }));
     };
 
-    ws.onmessage = (event) => {
+    this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         this.handleMessage(data);
@@ -29,12 +31,13 @@ class WebSocketService {
       }
     };
 
-    ws.onerror = (error) => {
+    this.ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
 
-    ws.onclose = () => {
+    this.ws.onclose = () => {
       console.log('WebSocket disconnected');
+      this.ws = null;
       // Attempt to reconnect after 5 seconds
       setTimeout(() => this.initializeWebSocket(), 5000);
     };
@@ -50,6 +53,12 @@ class WebSocketService {
         break;
       case 'update':
         console.log('Received update:', data);
+        this.updateCallbacks.forEach((callback) => callback(data.updateType, data.data));
+        break;
+      case 'publishing_started':
+      case 'publishing_stopped':
+      case 'template_updated':
+        this.updateCallbacks.forEach((callback) => callback(data.type, data));
         break;
     }
   }
@@ -66,7 +75,51 @@ class WebSocketService {
     };
   }
 
+  onUpdate(callback: (type: string, data: any) => void): () => void {
+    this.updateCallbacks.push(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const index = this.updateCallbacks.indexOf(callback);
+      if (index > -1) {
+        this.updateCallbacks.splice(index, 1);
+      }
+    };
+  }
+
+  sendTemplateUpdate(templateId: number, template: any): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: 'template_update',
+        templateId,
+        template
+      }));
+    }
+  }
+
+  startPublishing(templateId: number): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: 'start_publishing',
+        templateId
+      }));
+    }
+  }
+
+  stopPublishing(templateId: number): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: 'stop_publishing',
+        templateId
+      }));
+    }
+  }
+
   disconnect(): void {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
