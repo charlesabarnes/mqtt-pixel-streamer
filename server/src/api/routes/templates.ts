@@ -52,6 +52,75 @@ let templates: Template[] = [
   },
   {
     id: 2,
+    name: 'Retro Pipes',
+    backgroundConfig: {
+      type: 'pipes',
+      pipes: {
+        pipeWidth: 3,
+        growthSpeed: 2,
+        maxPipes: 5,
+        turnProbability: 0.15,
+        colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'],
+        pipeLifetime: 80
+      }
+    },
+    background: '#000000',
+    updateInterval: 50,
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'pipes-title',
+        type: 'text',
+        position: { x: 35, y: 10 },
+        text: 'PIPES SCREENSAVER',
+        style: {
+          color: '#FFFFFF',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 3,
+    name: 'Aquarium',
+    backgroundConfig: {
+      type: 'fishtank',
+      fishtank: {
+        fishCount: 6,
+        fishMinSize: 4,
+        fishMaxSize: 8,
+        swimSpeed: 1.2,
+        bubbleCount: 15,
+        bubbleSpeed: 0.6,
+        plantCount: 4,
+        waterColor: '#001844',
+        fishColors: ['#FFA500', '#FFD700', '#FF6347', '#FF1493', '#00CED1', '#32CD32']
+      }
+    },
+    background: '#001844',
+    updateInterval: 50,
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'aquarium-title',
+        type: 'text',
+        position: { x: 45, y: 8 },
+        text: 'AQUARIUM',
+        style: {
+          color: '#00FFFF',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 4,
     name: 'Dual Display Clock',
     background: '#000000',
     updateInterval: 1000,
@@ -102,7 +171,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 3,
+    id: 5,
     name: 'DVD Logo Bouncer',
     background: '#000000',
     updateInterval: 50, // 20 FPS for smooth animation
@@ -137,7 +206,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 4,
+    id: 6,
     name: 'Rainbow Text Demo',
     background: '#000000',
     updateInterval: 100,
@@ -172,7 +241,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 5,
+    id: 7,
     name: 'Weather Display',
     background: '#000000',
     updateInterval: 1000, // 1 second (weather data updates independently)
@@ -234,7 +303,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 6,
+    id: 8,
     name: 'Fireworks Background',
     background: '#000000', // Legacy fallback
     backgroundConfig: {
@@ -267,7 +336,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 7,
+    id: 9,
     name: 'Bubble Effect',
     background: '#001122', // Legacy fallback
     backgroundConfig: {
@@ -301,7 +370,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 8,
+    id: 10,
     name: 'Matrix Background',
     background: '#000000', // Legacy fallback
     backgroundConfig: {
@@ -333,7 +402,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 9,
+    id: 11,
     name: 'Gradient Waves',
     background: '#000000', // Legacy fallback
     backgroundConfig: {
@@ -377,7 +446,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 10,
+    id: 12,
     name: 'Starfield',
     background: '#000000', // Legacy fallback
     backgroundConfig: {
@@ -409,7 +478,7 @@ let templates: Template[] = [
     ]
   },
   {
-    id: 9,
+    id: 13,
     name: 'Multi-Timezone Display',
     background: '#000000',
     updateInterval: 1000,
@@ -500,7 +569,7 @@ let templates: Template[] = [
 ];
 
 // Get all templates
-router.get('/', (req: Request, res: Response) => {
+router.get('/', (_req: Request, res: Response) => {
   res.json(templates);
 });
 

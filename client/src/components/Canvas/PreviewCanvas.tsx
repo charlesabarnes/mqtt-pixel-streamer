@@ -14,6 +14,9 @@ interface ClientBackgroundAnimationState {
   lastUpdate: number;
   gradientPhase?: number;
   matrixColumns?: { x: number; y: number; speed: number; pixelSize: number }[];
+  pipeSegments?: BackgroundParticle[]; // Active pipe segments
+  fishParticles?: BackgroundParticle[]; // Fish in the tank
+  plantPositions?: { x: number; height: number; swayPhase: number }[]; // Plants/seaweed
 }
 
 class ClientBackgroundAnimationManager {
@@ -51,6 +54,12 @@ class ClientBackgroundAnimationManager {
         break;
       case 'matrix':
         this.initializeMatrix(state, config.matrix!);
+        break;
+      case 'pipes':
+        this.initializePipes(state, config.pipes!);
+        break;
+      case 'fishtank':
+        this.initializeFishTank(state, config.fishtank!);
         break;
     }
   }
@@ -150,6 +159,91 @@ class ClientBackgroundAnimationManager {
     }
   }
 
+  private initializePipes(state: ClientBackgroundAnimationState, config: NonNullable<BackgroundConfig['pipes']>): void {
+    state.pipeSegments = [];
+
+    // Start with a few initial pipes
+    const initialPipes = Math.min(2, config.maxPipes);
+    for (let i = 0; i < initialPipes; i++) {
+      const startX = Math.floor(Math.random() * (DISPLAY_WIDTH / config.pipeWidth)) * config.pipeWidth;
+      const startY = Math.floor(Math.random() * (TOTAL_DISPLAY_HEIGHT / config.pipeWidth)) * config.pipeWidth;
+      const directions: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
+
+      state.pipeSegments.push({
+        id: `pipe_${i}`,
+        position: { x: startX, y: startY },
+        velocity: { x: 0, y: 0 },
+        color: config.colors[Math.floor(Math.random() * config.colors.length)],
+        life: config.pipeLifetime,
+        maxLife: config.pipeLifetime,
+        size: config.pipeWidth,
+        opacity: 1,
+        direction: directions[Math.floor(Math.random() * directions.length)],
+        segments: [{ x: startX, y: startY }],
+        isGrowing: true
+      });
+    }
+  }
+
+  private initializeFishTank(state: ClientBackgroundAnimationState, config: NonNullable<BackgroundConfig['fishtank']>): void {
+    state.fishParticles = [];
+    state.particles = []; // For bubbles
+    state.plantPositions = [];
+
+    // Initialize fish
+    for (let i = 0; i < config.fishCount; i++) {
+      const size = Math.random() * (config.fishMaxSize - config.fishMinSize) + config.fishMinSize;
+      state.fishParticles.push({
+        id: `fish_${i}`,
+        position: {
+          x: Math.random() * DISPLAY_WIDTH,
+          y: Math.random() * (TOTAL_DISPLAY_HEIGHT - 10) + 5 // Keep fish away from very top and bottom
+        },
+        velocity: {
+          x: (Math.random() > 0.5 ? 1 : -1) * config.swimSpeed,
+          y: (Math.random() - 0.5) * config.swimSpeed * 0.3
+        },
+        color: config.fishColors[Math.floor(Math.random() * config.fishColors.length)],
+        life: Infinity,
+        maxLife: Infinity,
+        size,
+        opacity: 1,
+        direction: 'right',
+        swimPhase: Math.random() * Math.PI * 2,
+        fishType: Math.floor(Math.random() * 3) // 3 different fish types
+      });
+    }
+
+    // Initialize bubbles
+    for (let i = 0; i < config.bubbleCount; i++) {
+      state.particles.push({
+        id: `bubble_${i}`,
+        position: {
+          x: Math.random() * DISPLAY_WIDTH,
+          y: TOTAL_DISPLAY_HEIGHT + Math.random() * 20
+        },
+        velocity: {
+          x: (Math.random() - 0.5) * 0.2,
+          y: -config.bubbleSpeed
+        },
+        color: 'rgba(255, 255, 255, 0.4)',
+        life: Infinity,
+        maxLife: Infinity,
+        size: Math.random() * 2 + 1,
+        opacity: 0.6
+      });
+    }
+
+    // Initialize plants
+    for (let i = 0; i < config.plantCount; i++) {
+      state.plantPositions.push({
+        x: Math.random() * DISPLAY_WIDTH,
+        height: Math.random() * 10 + 5,
+        swayPhase: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
   public updateBackground(config: BackgroundConfig, deltaTime: number): void {
     if (!this.backgroundState) return;
 
@@ -174,6 +268,12 @@ class ClientBackgroundAnimationManager {
         break;
       case 'stars':
         this.updateStars(this.backgroundState, config.stars!, deltaTime);
+        break;
+      case 'pipes':
+        this.updatePipes(this.backgroundState, config.pipes!, deltaTime);
+        break;
+      case 'fishtank':
+        this.updateFishTank(this.backgroundState, config.fishtank!, deltaTime);
         break;
     }
 
@@ -311,6 +411,169 @@ class ClientBackgroundAnimationManager {
           (sinValue + 1) * 0.5;
       }
     });
+  }
+
+  private updatePipes(state: ClientBackgroundAnimationState, config: NonNullable<BackgroundConfig['pipes']>, deltaTime: number): void {
+    if (!state.pipeSegments) return;
+
+    const deltaSeconds = deltaTime / 1000;
+    const growthFrames = Math.ceil(deltaSeconds * 60 / config.growthSpeed);
+
+    // Update existing pipes
+    state.pipeSegments.forEach(pipe => {
+      if (!pipe.isGrowing || !pipe.segments) return;
+
+      for (let i = 0; i < growthFrames; i++) {
+        const lastSegment = pipe.segments[pipe.segments.length - 1];
+        let newX = lastSegment.x;
+        let newY = lastSegment.y;
+
+        // Move in current direction
+        switch (pipe.direction) {
+          case 'up':
+            newY -= config.pipeWidth;
+            break;
+          case 'down':
+            newY += config.pipeWidth;
+            break;
+          case 'left':
+            newX -= config.pipeWidth;
+            break;
+          case 'right':
+            newX += config.pipeWidth;
+            break;
+        }
+
+        // Check bounds and possibly turn
+        let shouldTurn = false;
+        if (newX < 0 || newX >= DISPLAY_WIDTH || newY < 0 || newY >= TOTAL_DISPLAY_HEIGHT) {
+          shouldTurn = true;
+        } else if (Math.random() < config.turnProbability) {
+          shouldTurn = true;
+        }
+
+        if (shouldTurn) {
+          // Choose a new valid direction
+          const validDirections: Array<'up' | 'down' | 'left' | 'right'> = [];
+          if (lastSegment.x >= config.pipeWidth) validDirections.push('left');
+          if (lastSegment.x < DISPLAY_WIDTH - config.pipeWidth) validDirections.push('right');
+          if (lastSegment.y >= config.pipeWidth) validDirections.push('up');
+          if (lastSegment.y < TOTAL_DISPLAY_HEIGHT - config.pipeWidth) validDirections.push('down');
+
+          if (validDirections.length > 0) {
+            pipe.direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+          } else {
+            pipe.isGrowing = false;
+            continue;
+          }
+
+          // Recalculate position with new direction
+          newX = lastSegment.x;
+          newY = lastSegment.y;
+          switch (pipe.direction) {
+            case 'up':
+              newY -= config.pipeWidth;
+              break;
+            case 'down':
+              newY += config.pipeWidth;
+              break;
+            case 'left':
+              newX -= config.pipeWidth;
+              break;
+            case 'right':
+              newX += config.pipeWidth;
+              break;
+          }
+        }
+
+        // Add new segment if within bounds
+        if (newX >= 0 && newX < DISPLAY_WIDTH && newY >= 0 && newY < TOTAL_DISPLAY_HEIGHT) {
+          pipe.segments.push({ x: newX, y: newY });
+          pipe.life--;
+
+          if (pipe.life <= 0) {
+            pipe.isGrowing = false;
+          }
+        } else {
+          pipe.isGrowing = false;
+        }
+      }
+    });
+
+    // Remove old pipes and start new ones
+    state.pipeSegments = state.pipeSegments.filter(pipe => pipe.segments && pipe.segments.length > 0);
+
+    // Add new pipes if below max
+    if (state.pipeSegments.length < config.maxPipes && Math.random() < 0.02) {
+      const startX = Math.floor(Math.random() * (DISPLAY_WIDTH / config.pipeWidth)) * config.pipeWidth;
+      const startY = Math.floor(Math.random() * (TOTAL_DISPLAY_HEIGHT / config.pipeWidth)) * config.pipeWidth;
+      const directions: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
+
+      state.pipeSegments.push({
+        id: `pipe_${Date.now()}`,
+        position: { x: startX, y: startY },
+        velocity: { x: 0, y: 0 },
+        color: config.colors[Math.floor(Math.random() * config.colors.length)],
+        life: config.pipeLifetime,
+        maxLife: config.pipeLifetime,
+        size: config.pipeWidth,
+        opacity: 1,
+        direction: directions[Math.floor(Math.random() * directions.length)],
+        segments: [{ x: startX, y: startY }],
+        isGrowing: true
+      });
+    }
+  }
+
+  private updateFishTank(state: ClientBackgroundAnimationState, config: NonNullable<BackgroundConfig['fishtank']>, deltaTime: number): void {
+    const deltaSeconds = deltaTime / 1000;
+
+    // Update fish
+    if (state.fishParticles) {
+      state.fishParticles.forEach(fish => {
+        // Update position
+        fish.position.x += fish.velocity.x * deltaSeconds * 60;
+        fish.position.y += fish.velocity.y * deltaSeconds * 60;
+
+        // Update swim animation phase
+        if (fish.swimPhase !== undefined) {
+          fish.swimPhase += 3 * deltaSeconds;
+        }
+
+        // Bounce off walls
+        if (fish.position.x <= 0 || fish.position.x >= DISPLAY_WIDTH - fish.size) {
+          fish.velocity.x *= -1;
+          fish.direction = fish.velocity.x > 0 ? 'right' : 'left';
+        }
+        if (fish.position.y <= 0 || fish.position.y >= TOTAL_DISPLAY_HEIGHT - fish.size) {
+          fish.velocity.y *= -1;
+        }
+
+        // Occasional random direction change
+        if (Math.random() < 0.01) {
+          fish.velocity.y = (Math.random() - 0.5) * config.swimSpeed * 0.3;
+        }
+      });
+    }
+
+    // Update bubbles
+    state.particles.forEach(bubble => {
+      bubble.position.x += bubble.velocity.x * deltaSeconds * 60;
+      bubble.position.y += bubble.velocity.y * deltaSeconds * 60;
+
+      // Reset bubbles that reach the top
+      if (bubble.position.y < -bubble.size) {
+        bubble.position.y = TOTAL_DISPLAY_HEIGHT + bubble.size;
+        bubble.position.x = Math.random() * DISPLAY_WIDTH;
+      }
+    });
+
+    // Update plant sway
+    if (state.plantPositions) {
+      state.plantPositions.forEach(plant => {
+        plant.swayPhase += deltaSeconds * 2;
+      });
+    }
   }
 
   public getBackgroundState(): ClientBackgroundAnimationState | null {
@@ -452,6 +715,14 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       case 'matrix':
         renderMatrixBackground(ctx, backgroundConfig.matrix!, width, height);
         break;
+
+      case 'pipes':
+        renderPipesBackground(ctx, backgroundConfig.pipes!, width, height);
+        break;
+
+      case 'fishtank':
+        renderFishTankBackground(ctx, backgroundConfig.fishtank!, width, height);
+        break;
     }
   };
 
@@ -538,6 +809,129 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     });
 
     ctx.globalAlpha = 1;
+  };
+
+  const renderPipesBackground = (ctx: CanvasRenderingContext2D, config: NonNullable<BackgroundConfig['pipes']>, width: number, height: number): void => {
+    // Clear with black background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+
+    const state = backgroundAnimationManager.current.getBackgroundState();
+    if (!state?.pipeSegments) return;
+
+    // Render all pipe segments
+    state.pipeSegments.forEach(pipe => {
+      if (!pipe.segments) return;
+
+      ctx.fillStyle = applyBrightness(pipe.color);
+
+      // Draw each segment
+      pipe.segments.forEach((segment, index) => {
+        ctx.fillRect(segment.x, segment.y, config.pipeWidth, config.pipeWidth);
+
+        // Draw corner connectors for turns
+        if (index > 0) {
+          const prevSegment = pipe.segments![index - 1];
+          const dx = segment.x - prevSegment.x;
+          const dy = segment.y - prevSegment.y;
+
+          // Draw a corner piece if there's a turn
+          if (dx !== 0 && dy !== 0) {
+            // This creates a smooth corner
+            ctx.fillRect(
+              Math.min(segment.x, prevSegment.x),
+              Math.min(segment.y, prevSegment.y),
+              config.pipeWidth,
+              config.pipeWidth
+            );
+          }
+        }
+      });
+
+      // Draw end cap for growing pipes
+      if (pipe.isGrowing && pipe.segments.length > 0) {
+        const lastSegment = pipe.segments[pipe.segments.length - 1];
+        ctx.fillStyle = applyBrightness('#FFFFFF');
+        const capSize = Math.floor(config.pipeWidth / 3);
+        ctx.fillRect(
+          lastSegment.x + Math.floor((config.pipeWidth - capSize) / 2),
+          lastSegment.y + Math.floor((config.pipeWidth - capSize) / 2),
+          capSize,
+          capSize
+        );
+      }
+    });
+  };
+
+  const renderFishTankBackground = (ctx: CanvasRenderingContext2D, config: NonNullable<BackgroundConfig['fishtank']>, width: number, height: number): void => {
+    // Clear with water color
+    const waterColor = applyBrightness(config.waterColor);
+    ctx.fillStyle = waterColor;
+    ctx.fillRect(0, 0, width, height);
+
+    const state = backgroundAnimationManager.current.getBackgroundState();
+    if (!state) return;
+
+    // Render plants/seaweed
+    if (state.plantPositions) {
+      ctx.fillStyle = applyBrightness('#004400');
+      state.plantPositions.forEach(plant => {
+        const swayOffset = Math.sin(plant.swayPhase) * 2;
+
+        // Draw simple seaweed using rectangles
+        for (let y = 0; y < plant.height; y++) {
+          const segmentSway = swayOffset * (y / plant.height);
+          ctx.fillRect(
+            plant.x + segmentSway,
+            TOTAL_DISPLAY_HEIGHT - y - 1,
+            2,
+            1
+          );
+        }
+      });
+    }
+
+    // Render fish
+    if (state.fishParticles) {
+      state.fishParticles.forEach(fish => {
+        ctx.fillStyle = applyBrightness(fish.color);
+
+        // Simple fish shape (rectangular body with tail)
+        const bodyLength = Math.floor(fish.size * 0.7);
+        const tailLength = Math.floor(fish.size * 0.3);
+
+        // Body
+        ctx.fillRect(fish.position.x, fish.position.y, bodyLength, Math.floor(fish.size / 2));
+
+        // Tail (triangle approximation with rectangles)
+        if (fish.direction === 'right') {
+          // Tail on left
+          ctx.fillRect(fish.position.x - tailLength, fish.position.y + Math.floor(fish.size / 4), tailLength, 1);
+        } else {
+          // Tail on right
+          ctx.fillRect(fish.position.x + bodyLength, fish.position.y + Math.floor(fish.size / 4), tailLength, 1);
+        }
+
+        // Eye
+        ctx.fillStyle = '#FFFFFF';
+        const eyeX = fish.direction === 'right' ? fish.position.x + bodyLength - 2 : fish.position.x + 1;
+        ctx.fillRect(eyeX, fish.position.y, 1, 1);
+      });
+    }
+
+    // Render bubbles
+    if (state.particles) {
+      state.particles.forEach(bubble => {
+        ctx.save();
+        ctx.globalAlpha = bubble.opacity * (brightness / 100);
+        ctx.fillStyle = applyBrightness('#FFFFFF');
+
+        // Draw bubble as a small circle (approximated with rect for pixel art)
+        ctx.fillRect(bubble.position.x, bubble.position.y, bubble.size, bubble.size);
+
+        ctx.restore();
+      });
+    }
   };
 
   useEffect(() => {

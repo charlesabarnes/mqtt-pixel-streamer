@@ -128,6 +128,31 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
           minBrightness: 0.2,
           maxBrightness: 1.0
         }
+      },
+      pipes: {
+        type: 'pipes',
+        pipes: {
+          pipeWidth: 3,
+          growthSpeed: 2,
+          maxPipes: 5,
+          turnProbability: 0.1,
+          colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'],
+          pipeLifetime: 100
+        }
+      },
+      fishtank: {
+        type: 'fishtank',
+        fishtank: {
+          fishCount: 5,
+          fishMinSize: 4,
+          fishMaxSize: 8,
+          swimSpeed: 1,
+          bubbleCount: 10,
+          bubbleSpeed: 0.5,
+          plantCount: 3,
+          waterColor: '#001844',
+          fishColors: ['#FFA500', '#FFD700', '#FF6347', '#FF1493', '#00CED1']
+        }
       }
     };
     return defaults[type];
@@ -194,6 +219,8 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
                 <MenuItem value="matrix">Matrix</MenuItem>
                 <MenuItem value="snow">Snow</MenuItem>
                 <MenuItem value="stars">Stars</MenuItem>
+                <MenuItem value="pipes">Pipes</MenuItem>
+                <MenuItem value="fishtank">Fish Tank</MenuItem>
               </Select>
             </FormControl>
 
@@ -478,6 +505,161 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
                   min={0}
                   max={1}
                   step={0.1}
+                />
+              </Box>
+            )}
+
+            {/* Pipes background configuration */}
+            {backgroundConfig.type === 'pipes' && backgroundConfig.pipes && (
+              <Box>
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Pipe Width: {backgroundConfig.pipes.pipeWidth}px
+                </Typography>
+                <Slider
+                  value={backgroundConfig.pipes.pipeWidth}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, pipeWidth: value as number }
+                  })}
+                  min={2}
+                  max={6}
+                  step={1}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Growth Speed: {backgroundConfig.pipes.growthSpeed}
+                </Typography>
+                <Slider
+                  value={backgroundConfig.pipes.growthSpeed}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, growthSpeed: value as number }
+                  })}
+                  min={1}
+                  max={5}
+                  step={0.5}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Max Pipes: {backgroundConfig.pipes.maxPipes}
+                </Typography>
+                <Slider
+                  value={backgroundConfig.pipes.maxPipes}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, maxPipes: value as number }
+                  })}
+                  min={1}
+                  max={10}
+                  step={1}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Turn Probability: {(backgroundConfig.pipes.turnProbability * 100).toFixed(0)}%
+                </Typography>
+                <Slider
+                  value={backgroundConfig.pipes.turnProbability}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, turnProbability: value as number }
+                  })}
+                  min={0}
+                  max={0.5}
+                  step={0.05}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Pipe Lifetime: {backgroundConfig.pipes.pipeLifetime} segments
+                </Typography>
+                <Slider
+                  value={backgroundConfig.pipes.pipeLifetime}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, pipeLifetime: value as number }
+                  })}
+                  min={20}
+                  max={200}
+                  step={10}
+                />
+              </Box>
+            )}
+
+            {/* Fish Tank background configuration */}
+            {backgroundConfig.type === 'fishtank' && backgroundConfig.fishtank && (
+              <Box>
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Fish Count: {backgroundConfig.fishtank.fishCount}
+                </Typography>
+                <Slider
+                  value={backgroundConfig.fishtank.fishCount}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    fishtank: { ...backgroundConfig.fishtank!, fishCount: value as number }
+                  })}
+                  min={1}
+                  max={15}
+                  step={1}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Fish Size: {backgroundConfig.fishtank.fishMinSize} - {backgroundConfig.fishtank.fishMaxSize}px
+                </Typography>
+                <Slider
+                  value={[backgroundConfig.fishtank.fishMinSize, backgroundConfig.fishtank.fishMaxSize]}
+                  onChange={(_, value) => {
+                    const [min, max] = value as number[];
+                    updateBackgroundConfig({
+                      fishtank: { ...backgroundConfig.fishtank!, fishMinSize: min, fishMaxSize: max }
+                    });
+                  }}
+                  min={2}
+                  max={12}
+                  step={1}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Swim Speed: {backgroundConfig.fishtank.swimSpeed}
+                </Typography>
+                <Slider
+                  value={backgroundConfig.fishtank.swimSpeed}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    fishtank: { ...backgroundConfig.fishtank!, swimSpeed: value as number }
+                  })}
+                  min={0.2}
+                  max={3}
+                  step={0.2}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Bubble Count: {backgroundConfig.fishtank.bubbleCount}
+                </Typography>
+                <Slider
+                  value={backgroundConfig.fishtank.bubbleCount}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    fishtank: { ...backgroundConfig.fishtank!, bubbleCount: value as number }
+                  })}
+                  min={0}
+                  max={30}
+                  step={1}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Plant Count: {backgroundConfig.fishtank.plantCount}
+                </Typography>
+                <Slider
+                  value={backgroundConfig.fishtank.plantCount}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    fishtank: { ...backgroundConfig.fishtank!, plantCount: value as number }
+                  })}
+                  min={0}
+                  max={10}
+                  step={1}
+                />
+
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Water Color"
+                  type="color"
+                  value={backgroundConfig.fishtank.waterColor}
+                  onChange={(e) => updateBackgroundConfig({
+                    fishtank: { ...backgroundConfig.fishtank!, waterColor: e.target.value }
+                  })}
+                  InputLabelProps={{ shrink: true }}
                 />
               </Box>
             )}

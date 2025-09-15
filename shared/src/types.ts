@@ -42,7 +42,7 @@ export type ElementType = 'text' | 'icon' | 'shape' | 'data' | 'effect';
 export type ShapeType = 'rectangle' | 'circle' | 'line';
 export type AnimationType = 'none' | 'slide' | 'fade' | 'blink' | 'scroll' | 'bounce' | 'dvd-logo' | 'fireworks' | 'rainbow';
 export type EffectType = 'dvd-logo' | 'fireworks' | 'rainbow' | 'matrix' | 'snow';
-export type BackgroundType = 'solid' | 'fireworks' | 'bubbles' | 'gradient' | 'matrix' | 'snow' | 'stars';
+export type BackgroundType = 'solid' | 'fireworks' | 'bubbles' | 'gradient' | 'matrix' | 'snow' | 'stars' | 'pipes' | 'fishtank';
 
 export interface Position {
   x: number;
@@ -169,6 +169,25 @@ export interface BackgroundConfig {
     minBrightness: number;
     maxBrightness: number;
   };
+  pipes?: {
+    pipeWidth: number;
+    growthSpeed: number;
+    maxPipes: number;
+    turnProbability: number;
+    colors: string[];
+    pipeLifetime: number; // frames before a pipe stops growing
+  };
+  fishtank?: {
+    fishCount: number;
+    fishMinSize: number;
+    fishMaxSize: number;
+    swimSpeed: number;
+    bubbleCount: number;
+    bubbleSpeed: number;
+    plantCount: number;
+    waterColor: string;
+    fishColors: string[];
+  };
 }
 
 export interface BackgroundParticle {
@@ -183,6 +202,11 @@ export interface BackgroundParticle {
   // Type-specific properties
   character?: string; // for matrix effect
   twinklePhase?: number; // for stars
+  direction?: 'up' | 'down' | 'left' | 'right'; // for pipes and fish
+  segments?: Position[]; // for pipes - track the path
+  isGrowing?: boolean; // for pipes
+  swimPhase?: number; // for fish animation
+  fishType?: number; // for different fish sprites
 }
 
 export interface Frame {
