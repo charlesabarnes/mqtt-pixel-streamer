@@ -943,7 +943,8 @@ export class CanvasRenderer {
     const value = DataFormatter.processDataElement(
       element.dataSource,
       dataValues,
-      (element as any).format
+      (element as any).format,
+      element.timezone
     );
 
     const style = element.style || {};

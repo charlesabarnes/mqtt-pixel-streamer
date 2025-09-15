@@ -28,6 +28,8 @@ export interface Element {
   shape?: ShapeType;
   // Location for timezone-dependent data (time, date, weather)
   locationId?: number;
+  // Timezone for time/date formatting (e.g., 'America/New_York', 'America/Chicago')
+  timezone?: string;
   // Effect-specific properties
   effectType?: EffectType;
   effectConfig?: EffectConfig;

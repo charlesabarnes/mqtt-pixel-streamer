@@ -41,26 +41,26 @@ export class DataFormatter {
   /**
    * Format a value according to its type and format specification
    */
-  static formatValue(value: any, format?: string): string {
+  static formatValue(value: any, format?: string, timezone?: string): string {
     if (!format) {
       // Default formatting for common data types
       if (value instanceof Date) {
-        return this.formatTime(value);
+        return this.formatTime(value, true, timezone);
       }
       return String(value);
     }
 
     // Handle specific format patterns
     if (format === 'time' && value instanceof Date) {
-      return this.formatTime(value);
+      return this.formatTime(value, true, timezone);
     }
 
     if (format === 'date' && value instanceof Date) {
-      return this.formatDate(value);
+      return this.formatDate(value, timezone);
     }
 
     if (format === 'HH:MM' && value instanceof Date) {
-      return this.formatTime(value, false); // without seconds
+      return this.formatTime(value, false, timezone); // without seconds
     }
 
     if (format.includes('°F') && typeof value === 'number') {
@@ -93,7 +93,7 @@ export class DataFormatter {
   /**
    * Format time consistently across frontend and backend
    */
-  static formatTime(date: Date, includeSeconds: boolean = true): string {
+  static formatTime(date: Date, includeSeconds: boolean = true, timezone?: string): string {
     const options: Intl.DateTimeFormatOptions = {
       hour: '2-digit',
       minute: '2-digit',
@@ -104,17 +104,27 @@ export class DataFormatter {
       options.second = '2-digit';
     }
 
+    if (timezone) {
+      options.timeZone = timezone;
+    }
+
     return date.toLocaleTimeString('en-US', options);
   }
 
   /**
    * Format date consistently across frontend and backend
    */
-  static formatDate(date: Date): string {
-    return date.toLocaleDateString('en-US', {
+  static formatDate(date: Date, timezone?: string): string {
+    const options: Intl.DateTimeFormatOptions = {
       month: 'short',
       day: 'numeric',
-    });
+    };
+
+    if (timezone) {
+      options.timeZone = timezone;
+    }
+
+    return date.toLocaleDateString('en-US', options);
   }
 
   /**
@@ -123,7 +133,8 @@ export class DataFormatter {
   static processDataElement(
     dataSource: string,
     dataValues?: Record<string, any>,
-    format?: string
+    format?: string,
+    timezone?: string
   ): string {
     // First get the raw value
     let value: any;
@@ -145,7 +156,7 @@ export class DataFormatter {
     }
 
     // Format the value
-    return this.formatValue(value, format);
+    return this.formatValue(value, format, timezone);
   }
 
   /**

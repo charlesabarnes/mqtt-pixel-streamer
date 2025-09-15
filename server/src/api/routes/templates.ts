@@ -407,6 +407,95 @@ let templates: Template[] = [
         visible: true
       }
     ]
+  },
+  {
+    id: 9,
+    name: 'Multi-Timezone Display',
+    background: '#000000',
+    updateInterval: 1000,
+    enabled: true,
+    displayMode: 'dual' as const,
+    elements: [
+      {
+        id: 'est-time',
+        type: 'data',
+        position: { x: 2, y: 12 },
+        dataSource: 'time',
+        format: 'HH:MM',
+        timezone: 'America/New_York',
+        style: {
+          color: '#00FF00',
+          fontSize: 10,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'est-label',
+        type: 'text',
+        position: { x: 50, y: 12 },
+        text: 'EST',
+        style: {
+          color: '#888888',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'central-time',
+        type: 'data',
+        position: { x: 2, y: 24 },
+        dataSource: 'time',
+        format: 'HH:MM',
+        timezone: 'America/Chicago',
+        style: {
+          color: '#FFFF00',
+          fontSize: 10,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'central-label',
+        type: 'text',
+        position: { x: 50, y: 24 },
+        text: 'CST',
+        style: {
+          color: '#888888',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'date-display',
+        type: 'data',
+        position: { x: 2, y: 44 },
+        dataSource: 'date',
+        format: 'date',
+        style: {
+          color: '#00FFFF',
+          fontSize: 12,
+          fontFamily: 'monospace'
+        },
+        visible: true,
+        targetDisplay: 'display2'
+      },
+      {
+        id: 'date-label',
+        type: 'text',
+        position: { x: 2, y: 56 },
+        text: 'Today',
+        style: {
+          color: '#888888',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true,
+        targetDisplay: 'display2'
+      }
+    ]
   }
 ];
 

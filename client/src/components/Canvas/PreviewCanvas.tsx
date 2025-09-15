@@ -743,7 +743,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         const value = DataFormatter.processDataElement(
           element.dataSource || '',
           dataValues,
-          element.format
+          element.format,
+          element.timezone
         );
         ctx.fillText(value, element.position.x, element.position.y);
         break;

@@ -106,6 +106,10 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
     return dataSource === 'time' || dataSource === 'date' || dataSource?.startsWith('weather.');
   };
 
+  const isTimeDependentDataSource = (dataSource: string): boolean => {
+    return dataSource === 'time' || dataSource === 'date';
+  };
+
   const handleDataSourceChange = (dataSource: string) => {
     const selectedSource = getDataSources().find(source => source.key === dataSource);
     const updates: Partial<Element> = { dataSource };
@@ -323,6 +327,35 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
               return selectedSource?.example ? `Example output: ${selectedSource.example}` : undefined;
             })()}
           />
+
+          {element.dataSource && isTimeDependentDataSource(element.dataSource) && (
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Timezone</InputLabel>
+              <Select
+                value={element.timezone || ''}
+                label="Timezone"
+                onChange={(e) => onUpdate({ timezone: e.target.value || undefined })}
+              >
+                <MenuItem value="">
+                  <em>System Default</em>
+                </MenuItem>
+                <MenuItem value="America/New_York">Eastern Time (ET)</MenuItem>
+                <MenuItem value="America/Chicago">Central Time (CT)</MenuItem>
+                <MenuItem value="America/Denver">Mountain Time (MT)</MenuItem>
+                <MenuItem value="America/Los_Angeles">Pacific Time (PT)</MenuItem>
+                <MenuItem value="America/Anchorage">Alaska Time (AKT)</MenuItem>
+                <MenuItem value="Pacific/Honolulu">Hawaii Time (HST)</MenuItem>
+                <MenuItem value="Europe/London">London (GMT/BST)</MenuItem>
+                <MenuItem value="Europe/Paris">Paris (CET/CEST)</MenuItem>
+                <MenuItem value="Europe/Berlin">Berlin (CET/CEST)</MenuItem>
+                <MenuItem value="Europe/Moscow">Moscow (MSK)</MenuItem>
+                <MenuItem value="Asia/Tokyo">Tokyo (JST)</MenuItem>
+                <MenuItem value="Asia/Shanghai">Shanghai (CST)</MenuItem>
+                <MenuItem value="Asia/Kolkata">India (IST)</MenuItem>
+                <MenuItem value="Australia/Sydney">Sydney (AEST/AEDT)</MenuItem>
+              </Select>
+            </FormControl>
+          )}
         </>
       )}
 
