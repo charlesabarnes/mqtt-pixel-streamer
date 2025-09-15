@@ -13,7 +13,7 @@ interface ClientBackgroundAnimationState {
   particles: BackgroundParticle[];
   lastUpdate: number;
   gradientPhase?: number;
-  matrixColumns?: { x: number; y: number; speed: number; character: string }[];
+  matrixColumns?: { x: number; y: number; speed: number; pixelSize: number }[];
 }
 
 class ClientBackgroundAnimationManager {
@@ -131,17 +131,21 @@ class ClientBackgroundAnimationManager {
     state.particles = [];
     state.matrixColumns = [];
 
-    const columnCount = Math.floor(DISPLAY_WIDTH / 6);
-    const effectiveDensity = Math.min(config.characterDensity, 0.2);
+    const pixelSize = 2; // Size of each matrix pixel/square
+    const columnSpacing = pixelSize + 1; // Space between columns
+    const columnCount = Math.floor(DISPLAY_WIDTH / columnSpacing);
+
+    // Increase density for more dynamic pixel matrix effect
+    const effectiveDensity = Math.min(config.characterDensity, 0.4);
     const activeColumns = Math.floor(columnCount * effectiveDensity);
 
     for (let i = 0; i < activeColumns; i++) {
-      const x = Math.floor(Math.random() * columnCount) * 6;
+      const x = Math.floor(Math.random() * columnCount) * columnSpacing;
       state.matrixColumns.push({
         x,
-        y: Math.random() * TOTAL_DISPLAY_HEIGHT - config.trailLength,
+        y: Math.random() * TOTAL_DISPLAY_HEIGHT - config.trailLength * pixelSize,
         speed: config.fallSpeed * (0.5 + Math.random() * 0.5),
-        character: config.characters[Math.floor(Math.random() * config.characters.length)]
+        pixelSize
       });
     }
   }
@@ -191,37 +195,42 @@ class ClientBackgroundAnimationManager {
       particle.opacity = Math.max(0, particle.life / particle.maxLife);
     });
 
-    // Spawn new fireworks (frame-rate independent)
-    if (Math.random() < config.frequency * deltaSeconds) {
+    // Spawn new fireworks much more frequently for spectacular display
+    // Multiply frequency by 3 for much more frequent explosions
+    if (Math.random() < config.frequency * deltaSeconds * 3) {
       this.spawnFirework(state, config);
     }
   }
 
   private spawnFirework(state: ClientBackgroundAnimationState, config: NonNullable<BackgroundConfig['fireworks']>): void {
-    // Limit max particles to prevent performance issues
-    if (state.particles.length > 50) return;
+    // Significantly increase particle limit for spectacular fireworks
+    if (state.particles.length > 300) return;
 
     const explosionX = Math.random() * DISPLAY_WIDTH;
-    const explosionY = Math.random() * TOTAL_DISPLAY_HEIGHT * 0.6;
+    const explosionY = Math.random() * TOTAL_DISPLAY_HEIGHT * 0.7; // Allow more of screen
 
-    // Reduce particle count for better performance
-    const particleCount = Math.min(config.particleCount, 6);
+    // Dramatically increase particle count per explosion
+    const particleCount = Math.min(config.particleCount, 20);
 
     for (let i = 0; i < particleCount; i++) {
       const angle = (i / particleCount) * Math.PI * 2;
-      const speed = Math.random() * 2 + 0.5;
+      // Add random angle variation for more natural spread
+      const angleVariation = (Math.random() - 0.5) * 0.5;
+      const finalAngle = angle + angleVariation;
+
+      const speed = Math.random() * 3 + 1; // Increase speed range for more dynamic movement
 
       state.particles.push({
         id: `firework_${Date.now()}_${i}`,
         position: { x: explosionX, y: explosionY },
         velocity: {
-          x: Math.cos(angle) * speed,
-          y: Math.sin(angle) * speed
+          x: Math.cos(finalAngle) * speed,
+          y: Math.sin(finalAngle) * speed
         },
         color: config.colors[Math.floor(Math.random() * config.colors.length)],
-        life: 40,
-        maxLife: 40,
-        size: 1,
+        life: 60 + Math.random() * 20, // Variable lifetime for more variety
+        maxLife: 60 + Math.random() * 20,
+        size: Math.random() > 0.7 ? 2 : 1, // Some larger particles
         opacity: 1
       });
     }
@@ -260,10 +269,13 @@ class ClientBackgroundAnimationManager {
     state.matrixColumns.forEach(column => {
       column.y += column.speed * deltaSeconds * 60;
 
-      if (column.y > TOTAL_DISPLAY_HEIGHT + config.trailLength) {
-        column.y = -config.trailLength;
-        if (Math.random() < 0.1) {
-          column.character = config.characters[Math.floor(Math.random() * config.characters.length)];
+      if (column.y > TOTAL_DISPLAY_HEIGHT + config.trailLength * column.pixelSize) {
+        column.y = -config.trailLength * column.pixelSize;
+        // Occasionally change position for more variety
+        if (Math.random() < 0.05) {
+          const columnSpacing = column.pixelSize + 1;
+          const columnCount = Math.floor(DISPLAY_WIDTH / columnSpacing);
+          column.x = Math.floor(Math.random() * columnCount) * columnSpacing;
         }
       }
     });
@@ -511,19 +523,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const state = backgroundAnimationManager.current.getBackgroundState();
     if (!state?.matrixColumns) return;
 
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'left';
-
     state.matrixColumns.forEach(column => {
-      // Render trail
+      // Render trail of pixel squares
       for (let i = 0; i < config.trailLength; i++) {
-        const y = column.y - i * 8;
+        const y = column.y - i * (column.pixelSize + 1);
         if (y >= 0 && y < height) {
           const alpha = (1 - (i / config.trailLength)) * (brightness / 100);
           const colorIndex = Math.floor(alpha * (config.colors.length - 1));
           ctx.globalAlpha = alpha;
           ctx.fillStyle = applyBrightness(config.colors[colorIndex] || config.colors[0]);
-          ctx.fillText(column.character, column.x, y);
+          ctx.fillRect(column.x, y, column.pixelSize, column.pixelSize);
         }
       }
     });

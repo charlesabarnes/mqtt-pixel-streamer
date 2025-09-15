@@ -27,7 +27,7 @@ interface BackgroundAnimationState {
   particles: BackgroundParticle[];
   lastUpdate: number;
   gradientPhase?: number;
-  matrixColumns?: { x: number; y: number; speed: number; character: string }[];
+  matrixColumns?: { x: number; y: number; speed: number; pixelSize: number }[];
 }
 
 class ParticlePool {
@@ -255,18 +255,21 @@ class BackgroundAnimationManager {
     state.particles = [];
     state.matrixColumns = [];
 
-    const columnCount = Math.floor(DISPLAY_WIDTH / 6); // Assuming 6-pixel wide characters
-    // Limit character density for better performance
-    const effectiveDensity = Math.min(config.characterDensity, 0.2);
+    const pixelSize = 2; // Size of each matrix pixel/square
+    const columnSpacing = pixelSize + 1; // Space between columns
+    const columnCount = Math.floor(DISPLAY_WIDTH / columnSpacing);
+
+    // Increase density for more dynamic pixel matrix effect
+    const effectiveDensity = Math.min(config.characterDensity, 0.4);
     const activeColumns = Math.floor(columnCount * effectiveDensity);
 
     for (let i = 0; i < activeColumns; i++) {
-      const x = Math.floor(Math.random() * columnCount) * 6;
+      const x = Math.floor(Math.random() * columnCount) * columnSpacing;
       state.matrixColumns.push({
         x,
-        y: Math.random() * TOTAL_DISPLAY_HEIGHT - config.trailLength,
+        y: Math.random() * TOTAL_DISPLAY_HEIGHT - config.trailLength * pixelSize,
         speed: config.fallSpeed * (0.5 + Math.random() * 0.5),
-        character: config.characters[Math.floor(Math.random() * config.characters.length)]
+        pixelSize
       });
     }
   }
@@ -327,36 +330,41 @@ class BackgroundAnimationManager {
       particle.opacity = Math.max(0, particle.life / particle.maxLife);
     });
 
-    // Spawn new fireworks (frame-rate independent)
-    if (Math.random() < config.frequency * deltaSeconds) {
+    // Spawn new fireworks much more frequently for spectacular display
+    // Multiply frequency by 3 for much more frequent explosions
+    if (Math.random() < config.frequency * deltaSeconds * 3) {
       this.spawnFirework(state, config);
     }
   }
 
   private spawnFirework(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['fireworks']>): void {
-    // Limit max particles to prevent performance issues
-    if (state.particles.length > 50) return;
+    // Significantly increase particle limit for spectacular fireworks
+    if (state.particles.length > 300) return;
 
     const explosionX = Math.random() * DISPLAY_WIDTH;
-    const explosionY = Math.random() * TOTAL_DISPLAY_HEIGHT * 0.6; // Upper area
+    const explosionY = Math.random() * TOTAL_DISPLAY_HEIGHT * 0.7; // Allow more of screen
 
-    // Reduce particle count for better performance
-    const particleCount = Math.min(config.particleCount, 6);
+    // Dramatically increase particle count per explosion
+    const particleCount = Math.min(config.particleCount, 20);
 
     for (let i = 0; i < particleCount; i++) {
       const angle = (i / particleCount) * Math.PI * 2;
-      const speed = Math.random() * 2 + 0.5; // Reduced speed for better visibility
+      // Add random angle variation for more natural spread
+      const angleVariation = (Math.random() - 0.5) * 0.5;
+      const finalAngle = angle + angleVariation;
+
+      const speed = Math.random() * 3 + 1; // Increase speed range for more dynamic movement
 
       const particle = this.particlePool.acquire();
       particle.id = `firework_${Date.now()}_${i}`;
       particle.position.x = explosionX;
       particle.position.y = explosionY;
-      particle.velocity.x = Math.cos(angle) * speed;
-      particle.velocity.y = Math.sin(angle) * speed;
+      particle.velocity.x = Math.cos(finalAngle) * speed;
+      particle.velocity.y = Math.sin(finalAngle) * speed;
       particle.color = config.colors[Math.floor(Math.random() * config.colors.length)];
-      particle.life = 40; // Fixed lifetime for consistency
-      particle.maxLife = 40;
-      particle.size = 1;
+      particle.life = 60 + Math.random() * 20; // Variable lifetime for more variety
+      particle.maxLife = particle.life;
+      particle.size = Math.random() > 0.7 ? 2 : 1; // Some larger particles
       particle.opacity = 1;
 
       state.particles.push(particle);
@@ -399,11 +407,13 @@ class BackgroundAnimationManager {
       // Frame-rate independent movement
       column.y += column.speed * deltaSeconds * 60;
 
-      if (column.y > TOTAL_DISPLAY_HEIGHT + config.trailLength) {
-        column.y = -config.trailLength;
-        // Change character less frequently for better performance
-        if (Math.random() < 0.1) {
-          column.character = config.characters[Math.floor(Math.random() * config.characters.length)];
+      if (column.y > TOTAL_DISPLAY_HEIGHT + config.trailLength * column.pixelSize) {
+        column.y = -config.trailLength * column.pixelSize;
+        // Occasionally change position for more variety
+        if (Math.random() < 0.05) {
+          const columnSpacing = column.pixelSize + 1;
+          const columnCount = Math.floor(DISPLAY_WIDTH / columnSpacing);
+          column.x = Math.floor(Math.random() * columnCount) * columnSpacing;
         }
       }
     });
@@ -754,17 +764,13 @@ export class CanvasRenderer {
     const state = this.backgroundAnimationManager.getBackgroundState(templateId);
     if (!state?.matrixColumns || state.matrixColumns.length === 0) return;
 
-    // Set font and alignment once
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'left';
-
     // Batch render by color/alpha to reduce context switches
-    const renderBatches = new Map<string, Array<{x: number, y: number, char: string}>>();
+    const renderBatches = new Map<string, Array<{x: number, y: number, size: number}>>();
 
     state.matrixColumns.forEach(column => {
-      // Render trail
+      // Render trail of pixel squares
       for (let i = 0; i < config.trailLength; i++) {
-        const y = column.y - i * 8;
+        const y = column.y - i * (column.pixelSize + 1);
         if (y >= 0 && y < height) {
           const alpha = 1 - (i / config.trailLength);
           const colorIndex = Math.floor(alpha * (config.colors.length - 1));
@@ -774,19 +780,19 @@ export class CanvasRenderer {
           if (!renderBatches.has(key)) {
             renderBatches.set(key, []);
           }
-          renderBatches.get(key)!.push({x: column.x, y, char: column.character});
+          renderBatches.get(key)!.push({x: column.x, y, size: column.pixelSize});
         }
       }
     });
 
-    // Render in batches by color/alpha
-    renderBatches.forEach((characters, key) => {
+    // Render pixel squares in batches by color/alpha
+    renderBatches.forEach((pixels, key) => {
       const [color, alphaStr] = key.split('_');
       ctx.globalAlpha = parseFloat(alphaStr);
       ctx.fillStyle = color;
 
-      characters.forEach(({x, y, char}) => {
-        ctx.fillText(char, x, y);
+      pixels.forEach(({x, y, size}) => {
+        ctx.fillRect(x, y, size, size);
       });
     });
 
