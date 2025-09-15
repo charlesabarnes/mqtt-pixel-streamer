@@ -8,7 +8,8 @@ import {
   StarsBackground,
   MatrixBackground,
   PipesBackground,
-  FishTankBackground
+  FishTankBackground,
+  GifBackground
 } from '@mqtt-pixel-streamer/shared';
 import { ServerCanvasAdapter, ServerPlatformUtils } from './ServerCanvasAdapter';
 
@@ -25,6 +26,7 @@ BackgroundFactory.registerBackground('stars', StarsBackground);
 BackgroundFactory.registerBackground('matrix', MatrixBackground);
 BackgroundFactory.registerBackground('pipes', PipesBackground);
 BackgroundFactory.registerBackground('fishtank', FishTankBackground);
+BackgroundFactory.registerBackground('gif', GifBackground);
 
 // Re-export what we need
 export { BackgroundFactory, ServerCanvasAdapter };

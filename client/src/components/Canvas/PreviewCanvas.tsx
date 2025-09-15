@@ -21,7 +21,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   template,
   isRunning,
   onTogglePreview,
-  brightness,
+  brightness: _brightness, // Currently unused, kept for future brightness control
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvas2Ref = useRef<HTMLCanvasElement>(null);

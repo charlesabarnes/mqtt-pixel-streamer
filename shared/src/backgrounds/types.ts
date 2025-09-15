@@ -27,6 +27,12 @@ export interface ICanvasContext {
   // Gradients (platform-specific implementation)
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient;
   createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): CanvasGradient;
+
+  // Image operations (for GIF and image backgrounds)
+  drawImage?(image: any, dx: number, dy: number, dw?: number, dh?: number): void;
+  putImageData?(imageData: ImageData, dx: number, dy: number): void;
+  getImageData?(sx: number, sy: number, sw: number, sh: number): ImageData;
+  createImageData?(width: number, height: number): ImageData;
 }
 
 /**

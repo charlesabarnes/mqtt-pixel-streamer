@@ -160,6 +160,16 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
           waterColor: '#001844',
           fishColors: ['#FFA500', '#FFD700', '#FF6347', '#FF1493', '#00CED1']
         }
+      },
+      gif: {
+        type: 'gif',
+        gif: {
+          src: '',
+          scaleMode: 'fit',
+          speed: 1.0,
+          position: { x: 0, y: 0 },
+          loop: true
+        }
       }
     };
     return defaults[type];
@@ -228,6 +238,7 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
                 <MenuItem value="stars">Stars</MenuItem>
                 <MenuItem value="pipes">Pipes</MenuItem>
                 <MenuItem value="fishtank">Fish Tank</MenuItem>
+                <MenuItem value="gif">GIF Animation</MenuItem>
               </Select>
             </FormControl>
 
@@ -752,6 +763,112 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
                     fishtank: { ...backgroundConfig.fishtank!, waterColor: e.target.value }
                   })}
                   InputLabelProps={{ shrink: true }}
+                />
+              </Box>
+            )}
+
+            {/* GIF background configuration */}
+            {backgroundConfig.type === 'gif' && backgroundConfig.gif && (
+              <Box>
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="GIF File Path or URL"
+                  value={backgroundConfig.gif.src}
+                  onChange={(e) => updateBackgroundConfig({
+                    gif: { ...backgroundConfig.gif!, src: e.target.value }
+                  })}
+                  placeholder="e.g., /path/to/animation.gif or https://example.com/animation.gif"
+                  helperText="Enter the path to your GIF file or a URL"
+                  InputLabelProps={{ shrink: true }}
+                />
+
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Scale Mode</InputLabel>
+                  <Select
+                    value={backgroundConfig.gif.scaleMode}
+                    label="Scale Mode"
+                    onChange={(e) => updateBackgroundConfig({
+                      gif: { ...backgroundConfig.gif!, scaleMode: e.target.value as any }
+                    })}
+                  >
+                    <MenuItem value="stretch">Stretch (fill display, may distort)</MenuItem>
+                    <MenuItem value="fit">Fit (maintain aspect ratio)</MenuItem>
+                    <MenuItem value="crop">Crop (scale and crop to fill)</MenuItem>
+                    <MenuItem value="tile">Tile (repeat across display)</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Animation Speed: {backgroundConfig.gif.speed}x
+                </Typography>
+                <Slider
+                  value={backgroundConfig.gif.speed}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    gif: { ...backgroundConfig.gif!, speed: value as number }
+                  })}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                />
+
+                {backgroundConfig.gif.scaleMode === 'fit' && (
+                  <Box>
+                    <Typography gutterBottom sx={{ mt: 2 }}>
+                      Position Offset
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <TextField
+                          fullWidth
+                          label="X Offset"
+                          type="number"
+                          value={backgroundConfig.gif.position.x}
+                          onChange={(e) => updateBackgroundConfig({
+                            gif: {
+                              ...backgroundConfig.gif!,
+                              position: {
+                                ...backgroundConfig.gif!.position,
+                                x: parseInt(e.target.value) || 0
+                              }
+                            }
+                          })}
+                          inputProps={{ min: -64, max: 64 }}
+                        />
+                      </Grid>
+                      <Grid item xs={6}>
+                        <TextField
+                          fullWidth
+                          label="Y Offset"
+                          type="number"
+                          value={backgroundConfig.gif.position.y}
+                          onChange={(e) => updateBackgroundConfig({
+                            gif: {
+                              ...backgroundConfig.gif!,
+                              position: {
+                                ...backgroundConfig.gif!.position,
+                                y: parseInt(e.target.value) || 0
+                              }
+                            }
+                          })}
+                          inputProps={{ min: -64, max: 64 }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={backgroundConfig.gif.loop}
+                      onChange={(e) => updateBackgroundConfig({
+                        gif: { ...backgroundConfig.gif!, loop: e.target.checked }
+                      })}
+                    />
+                  }
+                  label="Loop Animation"
+                  sx={{ mt: 2 }}
                 />
               </Box>
             )}

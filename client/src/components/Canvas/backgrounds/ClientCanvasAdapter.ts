@@ -70,6 +70,27 @@ export class ClientCanvasAdapter implements ICanvasContext {
   createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): CanvasGradient {
     return this.ctx.createRadialGradient(x0, y0, r0, x1, y1, r1);
   }
+
+  // Image operations
+  drawImage(image: any, dx: number, dy: number, dw?: number, dh?: number): void {
+    if (dw !== undefined && dh !== undefined) {
+      this.ctx.drawImage(image, dx, dy, dw, dh);
+    } else {
+      this.ctx.drawImage(image, dx, dy);
+    }
+  }
+
+  putImageData(imageData: ImageData, dx: number, dy: number): void {
+    this.ctx.putImageData(imageData, dx, dy);
+  }
+
+  getImageData(sx: number, sy: number, sw: number, sh: number): ImageData {
+    return this.ctx.getImageData(sx, sy, sw, sh);
+  }
+
+  createImageData(width: number, height: number): ImageData {
+    return this.ctx.createImageData(width, height);
+  }
 }
 
 /**

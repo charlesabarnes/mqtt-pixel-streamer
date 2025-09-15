@@ -572,6 +572,41 @@ let templates: Template[] = [
         targetDisplay: 'display2'
       }
     ]
+  },
+  {
+    id: 14,
+    name: 'South Park GIF',
+    background: '#000000', // Legacy fallback
+    backgroundConfig: {
+      type: 'gif',
+      gif: {
+        src: 'https://vpuniverse.com/downloads/monthly_2019_06/1309278985_SouthPark(1).gif.82f433d5b9f15d52470f14c9973015f3.gif',
+        scaleMode: 'fit',
+        speed: 0.5, // Slower speed to reduce flashing
+        position: { x: 0, y: 0 },
+        loop: true,
+        skipBlackFrames: true, // Skip frames that are mostly black
+        blackThreshold: 0.95, // Consider frames >95% black as skippable (only truly empty frames)
+        debugFrameSkipping: true // Enable detailed frame analysis logging
+      }
+    },
+    updateInterval: 50, // Smooth animation at 20 FPS
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'southpark-title',
+        type: 'text',
+        position: { x: 30, y: 8 },
+        text: 'SOUTH PARK',
+        style: {
+          color: '#FFFFFF',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
   }
 ];
 

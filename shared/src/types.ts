@@ -42,7 +42,7 @@ export type ElementType = 'text' | 'icon' | 'shape' | 'data' | 'effect';
 export type ShapeType = 'rectangle' | 'circle' | 'line';
 export type AnimationType = 'none' | 'slide' | 'fade' | 'blink' | 'scroll' | 'bounce' | 'dvd-logo' | 'fireworks' | 'rainbow';
 export type EffectType = 'dvd-logo' | 'fireworks' | 'rainbow' | 'matrix' | 'snow';
-export type BackgroundType = 'solid' | 'fireworks' | 'bubbles' | 'gradient' | 'matrix' | 'snow' | 'stars' | 'pipes' | 'fishtank';
+export type BackgroundType = 'solid' | 'fireworks' | 'bubbles' | 'gradient' | 'matrix' | 'snow' | 'stars' | 'pipes' | 'fishtank' | 'gif';
 
 export interface Position {
   x: number;
@@ -194,6 +194,16 @@ export interface BackgroundConfig {
     plantCount: number;
     waterColor: string;
     fishColors: string[];
+  };
+  gif?: {
+    src: string; // Path to GIF file or URL
+    scaleMode: 'stretch' | 'fit' | 'tile' | 'crop';
+    speed: number; // Animation speed multiplier (1.0 = normal)
+    position: { x: number; y: number }; // For 'fit' mode positioning
+    loop: boolean; // Whether to loop animation
+    skipBlackFrames?: boolean; // Whether to skip frames that are mostly black (default: true)
+    blackThreshold?: number; // Threshold for considering a frame "black" (0.0-1.0, default: 0.95)
+    debugFrameSkipping?: boolean; // Log detailed frame analysis for debugging
   };
 }
 

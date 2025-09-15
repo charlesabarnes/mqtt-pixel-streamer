@@ -17,3 +17,4 @@ export { StarsBackground } from './implementations/StarsBackground';
 export { MatrixBackground } from './implementations/MatrixBackground';
 export { PipesBackground } from './implementations/PipesBackground';
 export { FishTankBackground } from './implementations/FishTankBackground';
+export { GifBackground } from './implementations/GifBackground';
