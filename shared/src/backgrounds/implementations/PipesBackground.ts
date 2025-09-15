@@ -1,10 +1,14 @@
-import { CanvasRenderingContext2D } from 'canvas';
-import { BackgroundConfig, BackgroundParticle, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT, Position } from '@mqtt-pixel-streamer/shared';
-import { BaseBackground } from './Background';
+import { BackgroundConfig, BackgroundParticle, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT, Position } from '../../types';
+import { BaseBackground } from '../BaseBackground';
+import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
 
 export class PipesBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['pipes']>;
   private pipeSegments: BackgroundParticle[] = [];
+
+  constructor(platformUtils: IPlatformUtils = {}) {
+    super(platformUtils);
+  }
 
   initialize(config: BackgroundConfig): void {
     if (config.type === 'pipes' && config.pipes) {
@@ -38,7 +42,7 @@ export class PipesBackground extends BaseBackground {
   update(deltaTime: number): void {
     if (!this.config || this.pipeSegments.length === 0) return;
 
-    // Skip updates if deltaTime is too small or too large (avoid performance issues)
+    // Skip updates if deltaTime is too small or too large
     if (deltaTime < 5 || deltaTime > 100) return;
 
     const deltaSeconds = deltaTime / 1000;
@@ -87,125 +91,115 @@ export class PipesBackground extends BaseBackground {
 
           if (validDirections.length > 0) {
             pipe.direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+            // Recalculate position with new direction
+            newX = lastSegment.x;
+            newY = lastSegment.y;
+            switch (pipe.direction) {
+              case 'up':
+                newY -= this.config.pipeWidth;
+                break;
+              case 'down':
+                newY += this.config.pipeWidth;
+                break;
+              case 'left':
+                newX -= this.config.pipeWidth;
+                break;
+              case 'right':
+                newX += this.config.pipeWidth;
+                break;
+            }
           } else {
             pipe.isGrowing = false;
             continue;
           }
-
-          // Recalculate position with new direction
-          newX = lastSegment.x;
-          newY = lastSegment.y;
-          switch (pipe.direction) {
-            case 'up':
-              newY -= this.config.pipeWidth;
-              break;
-            case 'down':
-              newY += this.config.pipeWidth;
-              break;
-            case 'left':
-              newX -= this.config.pipeWidth;
-              break;
-            case 'right':
-              newX += this.config.pipeWidth;
-              break;
-          }
         }
 
-        // Add new segment if within bounds
+        // Add the new segment if valid
         if (newX >= 0 && newX < DISPLAY_WIDTH && newY >= 0 && newY < TOTAL_DISPLAY_HEIGHT) {
           pipe.segments.push({ x: newX, y: newY });
-          pipe.life--;
-
-          if (pipe.life <= 0) {
-            pipe.isGrowing = false;
-          }
         } else {
           pipe.isGrowing = false;
         }
+
+        // Limit segment length (use fixed value since config doesn't have maxLength)
+        const maxLength = 20;
+        if (pipe.segments.length > maxLength) {
+          pipe.segments.shift();
+        }
+      }
+
+      // Update pipe lifecycle
+      pipe.life -= deltaSeconds * 60;
+      if (pipe.life <= 0) {
+        pipe.isGrowing = false;
       }
     });
 
-    // Remove old pipes and start new ones
-    this.pipeSegments = this.pipeSegments.filter(pipe => pipe.segments && pipe.segments.length > 0);
+    // Remove dead pipes and spawn new ones
+    const usePooling = !!this.platformUtils;
+    if (usePooling) {
+      const deadPipes = this.pipeSegments.filter(pipe => pipe.life <= 0 && !pipe.isGrowing);
+      this.pipeSegments = this.pipeSegments.filter(pipe => pipe.life > 0 || pipe.isGrowing);
+      this.releaseMultipleParticles(deadPipes);
+    } else {
+      this.pipeSegments = this.pipeSegments.filter(pipe => pipe.life > 0 || pipe.isGrowing);
+    }
 
-    // Add new pipes if below max
+    // Spawn new pipes if needed
     if (this.pipeSegments.length < this.config.maxPipes && Math.random() < 0.02) {
-      const startX = Math.floor(Math.random() * (DISPLAY_WIDTH / this.config.pipeWidth)) * this.config.pipeWidth;
-      const startY = Math.floor(Math.random() * (TOTAL_DISPLAY_HEIGHT / this.config.pipeWidth)) * this.config.pipeWidth;
-      const directions: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
-
-      const particle = this.acquireParticle();
-      particle.id = `pipe_${Date.now()}`;
-      particle.position = { x: startX, y: startY };
-      particle.color = this.config.colors[Math.floor(Math.random() * this.config.colors.length)];
-      particle.life = this.config.pipeLifetime;
-      particle.maxLife = this.config.pipeLifetime;
-      particle.size = this.config.pipeWidth;
-      particle.opacity = 1;
-      particle.direction = directions[Math.floor(Math.random() * directions.length)];
-      particle.segments = [{ x: startX, y: startY }];
-      particle.isGrowing = true;
-
-      this.pipeSegments.push(particle);
+      this.spawnNewPipe();
     }
 
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  private spawnNewPipe(): void {
+    const startX = Math.floor(Math.random() * (DISPLAY_WIDTH / this.config.pipeWidth)) * this.config.pipeWidth;
+    const startY = Math.floor(Math.random() * (TOTAL_DISPLAY_HEIGHT / this.config.pipeWidth)) * this.config.pipeWidth;
+    const directions: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
+
+    const particle = this.acquireParticle();
+    particle.id = `pipe_${Date.now()}`;
+    particle.position = { x: startX, y: startY };
+    particle.color = this.config.colors[Math.floor(Math.random() * this.config.colors.length)];
+    particle.life = this.config.pipeLifetime;
+    particle.maxLife = this.config.pipeLifetime;
+    particle.size = this.config.pipeWidth;
+    particle.opacity = 1;
+    particle.direction = directions[Math.floor(Math.random() * directions.length)];
+    particle.segments = [{ x: startX, y: startY }];
+    particle.isGrowing = true;
+
+    this.pipeSegments.push(particle);
+  }
+
+  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
     // Clear with black background
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
-    if (this.pipeSegments.length === 0) return;
+    const brightness = options?.brightness ?? 100;
 
-    // Render all pipe segments
     this.pipeSegments.forEach(pipe => {
       if (!pipe.segments) return;
 
-      ctx.fillStyle = pipe.color;
+      ctx.save();
+      ctx.globalAlpha = pipe.opacity * (brightness / 100);
+      ctx.fillStyle = this.applyBrightness(pipe.color, brightness);
 
-      // Draw each segment
-      pipe.segments.forEach((segment, index) => {
-        ctx.fillRect(segment.x, segment.y, this.config.pipeWidth, this.config.pipeWidth);
-
-        // Draw corner connectors for turns
-        if (index > 0) {
-          const prevSegment = pipe.segments![index - 1];
-          const dx = segment.x - prevSegment.x;
-          const dy = segment.y - prevSegment.y;
-
-          // Draw a corner piece if there's a turn
-          if (dx !== 0 && dy !== 0) {
-            // This creates a smooth corner
-            ctx.fillRect(
-              Math.min(segment.x, prevSegment.x),
-              Math.min(segment.y, prevSegment.y),
-              this.config.pipeWidth,
-              this.config.pipeWidth
-            );
-          }
-        }
+      pipe.segments.forEach(segment => {
+        ctx.fillRect(segment.x, segment.y, pipe.size, pipe.size);
       });
 
-      // Draw end cap for growing pipes
-      if (pipe.isGrowing && pipe.segments.length > 0) {
-        const lastSegment = pipe.segments[pipe.segments.length - 1];
-        ctx.fillStyle = '#FFFFFF';
-        const capSize = Math.floor(this.config.pipeWidth / 3);
-        ctx.fillRect(
-          lastSegment.x + Math.floor((this.config.pipeWidth - capSize) / 2),
-          lastSegment.y + Math.floor((this.config.pipeWidth - capSize) / 2),
-          capSize,
-          capSize
-        );
-      }
+      ctx.restore();
     });
   }
 
   cleanup(): void {
     super.cleanup();
-    this.releaseMultipleParticles(this.pipeSegments);
+    if (this.platformUtils) {
+      this.releaseMultipleParticles(this.pipeSegments);
+    }
     this.pipeSegments = [];
   }
 

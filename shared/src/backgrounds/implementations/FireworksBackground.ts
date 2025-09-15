@@ -1,13 +1,18 @@
-import { CanvasRenderingContext2D } from 'canvas';
-import { BackgroundConfig, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '@mqtt-pixel-streamer/shared';
-import { BaseBackground } from './Background';
+import { BackgroundConfig, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '../../types';
+import { BaseBackground } from '../BaseBackground';
+import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
 
 export class FireworksBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['fireworks']>;
 
+  constructor(platformUtils: IPlatformUtils = {}) {
+    super(platformUtils);
+  }
+
   initialize(config: BackgroundConfig): void {
     if (config.type === 'fireworks' && config.fireworks) {
       this.config = config.fireworks;
+      this.particles = [];
     }
   }
 
@@ -17,10 +22,9 @@ export class FireworksBackground extends BaseBackground {
     // Skip updates if deltaTime is too small or too large (avoid performance issues)
     if (deltaTime < 5 || deltaTime > 100) return;
 
-    // Remove expired particles and return them to pool (batch operation)
-    const expiredParticles = this.particles.filter(particle => particle.life <= 0);
-    this.particles = this.particles.filter(particle => particle.life > 0);
-    this.releaseMultipleParticles(expiredParticles);
+    // Remove expired particles - use pooling if available
+    const usePooling = this.platformUtils && 'useParticlePooling' !== undefined;
+    this.removeExpiredParticles(usePooling);
 
     // Update existing particles with frame-rate independent movement
     const deltaSeconds = deltaTime / 1000;
@@ -37,13 +41,13 @@ export class FireworksBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
     // Clear with black background first
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
-    // Render particles using batch rendering
-    this.batchRenderParticles(ctx, this.particles, 'rect');
+    // Render particles using platform-specific optimizations
+    this.renderParticles(ctx, this.particles, options, 'rect');
   }
 
   private spawnFirework(): void {
@@ -59,21 +63,21 @@ export class FireworksBackground extends BaseBackground {
     for (let i = 0; i < particleCount; i++) {
       const angle = (i / particleCount) * Math.PI * 2;
       // Add random angle variation for more natural spread
-      const angleVariation = (Math.random() - 0.5) * 0.5;
-      const finalAngle = angle + angleVariation;
+      const finalAngle = angle + (Math.random() - 0.5) * 0.3;
 
-      const speed = Math.random() * 3 + 1; // Increase speed range for more dynamic movement
+      const speed = 2 + Math.random() * 4; // Increased speed for more dramatic effect
 
       const particle = this.acquireParticle();
       particle.id = `firework_${Date.now()}_${i}`;
-      particle.position.x = explosionX;
-      particle.position.y = explosionY;
-      particle.velocity.x = Math.cos(finalAngle) * speed;
-      particle.velocity.y = Math.sin(finalAngle) * speed;
+      particle.position = { x: explosionX, y: explosionY };
+      particle.velocity = {
+        x: Math.cos(finalAngle) * speed,
+        y: Math.sin(finalAngle) * speed
+      };
       particle.color = this.config.colors[Math.floor(Math.random() * this.config.colors.length)];
       particle.life = 60 + Math.random() * 20; // Variable lifetime for more variety
       particle.maxLife = particle.life;
-      particle.size = Math.random() > 0.7 ? 2 : 1; // Some larger particles
+      particle.size = Math.max(1, Math.floor(this.config.explosionSize));
       particle.opacity = 1;
 
       this.particles.push(particle);

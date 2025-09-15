@@ -1,49 +1,27 @@
-import { CanvasRenderingContext2D } from 'canvas';
-import { BackgroundConfig, BackgroundParticle, Position } from '@mqtt-pixel-streamer/shared';
-
-export interface IBackground {
-  /**
-   * Initialize the background with the given configuration
-   */
-  initialize(config: BackgroundConfig): void;
-
-  /**
-   * Update the background state with frame-rate independent movement
-   * @param deltaTime Time elapsed since last update in milliseconds
-   */
-  update(deltaTime: number): void;
-
-  /**
-   * Render the background to the canvas
-   */
-  render(ctx: CanvasRenderingContext2D, width: number, height: number): void;
-
-  /**
-   * Clean up any resources
-   */
-  cleanup(): void;
-
-  /**
-   * Get the current state for inspection/debugging
-   */
-  getState?(): any;
-}
+import { BackgroundConfig, BackgroundParticle } from '../types';
+import { IBackground, ICanvasContext, IRenderOptions, IPlatformUtils } from './types';
 
 export abstract class BaseBackground implements IBackground {
   protected particles: BackgroundParticle[] = [];
   protected lastUpdate: number = Date.now();
   protected particlePool: BackgroundParticle[] = [];
   protected maxPoolSize: number = 100;
+  protected platformUtils: IPlatformUtils;
+
+  constructor(platformUtils: IPlatformUtils = {}) {
+    this.platformUtils = platformUtils;
+  }
 
   abstract initialize(config: BackgroundConfig): void;
   abstract update(deltaTime: number): void;
-  abstract render(ctx: CanvasRenderingContext2D, width: number, height: number): void;
+  abstract render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void;
 
   /**
    * Acquire a particle from the pool or create a new one
    */
   protected acquireParticle(): BackgroundParticle {
-    if (this.particlePool.length > 0) {
+    // Use pooling only if platform supports it
+    if (this.platformUtils && this.particlePool.length > 0) {
       return this.particlePool.pop()!;
     }
 
@@ -113,60 +91,80 @@ export abstract class BaseBackground implements IBackground {
   }
 
   /**
-   * Batch render particles by color/opacity to reduce context switches
+   * Apply brightness to a color if platform supports it
    */
-  protected batchRenderParticles(
-    ctx: CanvasRenderingContext2D,
+  protected applyBrightness(color: string, brightness: number = 100): string {
+    if (this.platformUtils.applyBrightness) {
+      return this.platformUtils.applyBrightness(color, brightness);
+    }
+    return color; // Return original color if brightness not supported
+  }
+
+  /**
+   * Render particles using platform-specific optimizations
+   */
+  protected renderParticles(
+    ctx: ICanvasContext,
     particles: BackgroundParticle[],
+    options?: IRenderOptions,
     renderType: 'circle' | 'rect' = 'rect'
   ): void {
-    // Group particles by color and opacity
-    const particlesByStyle = new Map<string, BackgroundParticle[]>();
+    // Use batch rendering if available and enabled
+    if (options?.useBatchRendering && this.platformUtils.getBatchParticleRenderer) {
+      const batchRenderer = this.platformUtils.getBatchParticleRenderer();
+      batchRenderer(ctx, particles, renderType);
+      return;
+    }
 
+    // Fall back to individual particle rendering
     particles.forEach(particle => {
-      const key = `${particle.color}_${particle.opacity.toFixed(2)}`;
-      if (!particlesByStyle.has(key)) {
-        particlesByStyle.set(key, []);
-      }
-      particlesByStyle.get(key)!.push(particle);
-    });
+      ctx.save();
 
-    // Render particles in batches by style
-    particlesByStyle.forEach((styleParticles, styleKey) => {
-      if (styleParticles.length === 0) return;
-
-      const firstParticle = styleParticles[0];
-      ctx.globalAlpha = firstParticle.opacity;
-      ctx.fillStyle = firstParticle.color;
+      // Apply brightness if available
+      const brightness = options?.brightness ?? 100;
+      ctx.globalAlpha = particle.opacity * (brightness / 100);
+      ctx.fillStyle = this.applyBrightness(particle.color, brightness);
 
       if (renderType === 'circle') {
         ctx.beginPath();
-        styleParticles.forEach(particle => {
-          ctx.moveTo(particle.position.x + particle.size, particle.position.y);
-          ctx.arc(particle.position.x, particle.position.y, particle.size, 0, Math.PI * 2);
-        });
+        ctx.arc(particle.position.x, particle.position.y, particle.size, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        styleParticles.forEach(particle => {
-          ctx.fillRect(particle.position.x, particle.position.y, particle.size, particle.size);
-        });
+        ctx.fillRect(particle.position.x, particle.position.y, particle.size, particle.size);
       }
-    });
 
-    // Reset alpha
-    ctx.globalAlpha = 1.0;
+      ctx.restore();
+    });
+  }
+
+  /**
+   * Remove expired particles and optionally return them to pool
+   */
+  protected removeExpiredParticles(usePooling: boolean = true): void {
+    if (usePooling && this.platformUtils) {
+      // Return expired particles to pool (server optimization)
+      const expiredParticles = this.particles.filter(particle => particle.life <= 0);
+      this.particles = this.particles.filter(particle => particle.life > 0);
+      this.releaseMultipleParticles(expiredParticles);
+    } else {
+      // Simple filtering (client approach)
+      this.particles = this.particles.filter(particle => particle.life > 0);
+    }
   }
 
   cleanup(): void {
-    // Return all particles to pool
-    this.releaseMultipleParticles(this.particles);
+    // Return all particles to pool if pooling is supported
+    if (this.platformUtils) {
+      this.releaseMultipleParticles(this.particles);
+    }
     this.particles = [];
   }
 
   getState(): any {
     return {
       particleCount: this.particles.length,
-      lastUpdate: this.lastUpdate
+      lastUpdate: this.lastUpdate,
+      poolSize: this.particlePool.length
     };
   }
 }

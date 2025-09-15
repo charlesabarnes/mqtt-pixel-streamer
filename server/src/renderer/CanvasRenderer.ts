@@ -18,7 +18,7 @@ import {
 import path from 'path';
 import { weatherAnimatedIconManager } from './AnimatedIcon';
 import { websocketServer } from '../websocket/WebSocketServer';
-import { BackgroundFactory } from './backgrounds';
+import { BackgroundFactory, ServerCanvasAdapter } from './backgrounds';
 
 // Old background classes removed - now using individual background classes
 
@@ -195,8 +195,14 @@ export class CanvasRenderer {
       background.update(effectiveDeltaTime);
     }
 
-    // Render background
-    background.render(ctx, width, height);
+    // Create adapter for node-canvas compatibility
+    const canvasAdapter = new ServerCanvasAdapter(ctx);
+
+    // Render background with server-specific optimizations
+    background.render(canvasAdapter, width, height, {
+      useBatchRendering: true,
+      useParticlePooling: true
+    });
   }
 
   // Gradient rendering is now handled by GradientBackground class

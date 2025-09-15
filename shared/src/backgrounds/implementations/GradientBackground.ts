@@ -1,17 +1,23 @@
-import { CanvasRenderingContext2D, CanvasGradient } from 'canvas';
-import { BackgroundConfig } from '@mqtt-pixel-streamer/shared';
-import { BaseBackground } from './Background';
+import { BackgroundConfig } from '../../types';
+import { BaseBackground } from '../BaseBackground';
+import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
 
 export class GradientBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['gradient']>;
   private gradientPhase: number = 0;
   private gradientCache = new Map<string, CanvasGradient>();
 
+  constructor(platformUtils: IPlatformUtils = {}) {
+    super(platformUtils);
+  }
+
   initialize(config: BackgroundConfig): void {
     if (config.type === 'gradient' && config.gradient) {
       this.config = config.gradient;
       this.gradientPhase = 0;
     }
+    // Clear particles for gradient backgrounds
+    this.particles = [];
   }
 
   update(deltaTime: number): void {
@@ -25,31 +31,38 @@ export class GradientBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
     if (!this.config) return;
 
-    // Create cache key based on direction and dimensions
-    const baseCacheKey = `${this.config.direction}_${width}_${height}`;
+    const brightness = options?.brightness ?? 100;
 
+    // Create gradient based on direction
     let gradient: CanvasGradient;
 
-    // For animated gradients, create new gradient each time
+    // For server with caching optimization
+    const baseCacheKey = `${this.config.direction}_${width}_${height}`;
+
     if (this.config.cyclic && this.gradientPhase > 0) {
+      // For animated gradients, create new gradient each time
       gradient = this.createGradient(ctx, this.config.direction, width, height);
 
-      // Apply colors with animation phase
+      // Apply colors with animation phase and brightness
       this.config.colors.forEach((color, index) => {
         let position = index / (this.config.colors.length - 1);
         position = (position + this.gradientPhase) % 1;
-        gradient.addColorStop(Math.max(0, Math.min(1, position)), color);
+        const adjustedColor = this.applyBrightness(color, brightness);
+        gradient.addColorStop(Math.max(0, Math.min(1, position)), adjustedColor);
       });
     } else {
-      // Use cached gradient for static gradients
+      // Use cached gradient for static gradients (server optimization)
+      // Client will just recreate each time (simpler approach)
       gradient = this.getOrCreateGradient(ctx, baseCacheKey, this.config.direction, width, height);
 
+      // Apply colors with brightness
       this.config.colors.forEach((color, index) => {
         const position = index / (this.config.colors.length - 1);
-        gradient.addColorStop(Math.max(0, Math.min(1, position)), color);
+        const adjustedColor = this.applyBrightness(color, brightness);
+        gradient.addColorStop(Math.max(0, Math.min(1, position)), adjustedColor);
       });
     }
 
@@ -58,7 +71,7 @@ export class GradientBackground extends BaseBackground {
   }
 
   private getOrCreateGradient(
-    ctx: CanvasRenderingContext2D,
+    ctx: ICanvasContext,
     cacheKey: string,
     direction: string,
     width: number,
@@ -74,7 +87,7 @@ export class GradientBackground extends BaseBackground {
   }
 
   private createGradient(
-    ctx: CanvasRenderingContext2D,
+    ctx: ICanvasContext,
     direction: string,
     width: number,
     height: number
@@ -96,6 +109,7 @@ export class GradientBackground extends BaseBackground {
   cleanup(): void {
     super.cleanup();
     this.gradientCache.clear();
+    this.gradientPhase = 0;
   }
 
   getState(): any {

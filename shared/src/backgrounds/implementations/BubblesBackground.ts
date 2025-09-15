@@ -1,16 +1,22 @@
-import { CanvasRenderingContext2D } from 'canvas';
-import { BackgroundConfig, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '@mqtt-pixel-streamer/shared';
-import { BaseBackground } from './Background';
+import { BackgroundConfig, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '../../types';
+import { BaseBackground } from '../BaseBackground';
+import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
 
 export class BubblesBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['bubbles']>;
+
+  constructor(platformUtils: IPlatformUtils = {}) {
+    super(platformUtils);
+  }
 
   initialize(config: BackgroundConfig): void {
     if (config.type === 'bubbles' && config.bubbles) {
       this.config = config.bubbles;
 
-      // Release existing particles back to pool
-      this.releaseMultipleParticles(this.particles);
+      // Release existing particles back to pool if available
+      if (this.platformUtils) {
+        this.releaseMultipleParticles(this.particles);
+      }
       this.particles = [];
 
       // Limit bubble count for better performance
@@ -21,10 +27,14 @@ export class BubblesBackground extends BaseBackground {
         const particle = this.acquireParticle();
 
         particle.id = `bubble_${i}`;
-        particle.position.x = Math.random() * DISPLAY_WIDTH;
-        particle.position.y = Math.random() * TOTAL_DISPLAY_HEIGHT + TOTAL_DISPLAY_HEIGHT; // Start below screen
-        particle.velocity.x = (Math.random() - 0.5) * 0.5;
-        particle.velocity.y = -this.config.speed * (0.5 + Math.random() * 0.5);
+        particle.position = {
+          x: Math.random() * DISPLAY_WIDTH,
+          y: Math.random() * TOTAL_DISPLAY_HEIGHT + TOTAL_DISPLAY_HEIGHT // Start below screen
+        };
+        particle.velocity = {
+          x: (Math.random() - 0.5) * 0.5,
+          y: -this.config.speed * (0.5 + Math.random() * 0.5)
+        };
         particle.color = this.config.colors[Math.floor(Math.random() * this.config.colors.length)];
         particle.life = Infinity;
         particle.maxLife = Infinity;
@@ -49,12 +59,16 @@ export class BubblesBackground extends BaseBackground {
       particle.position.x += particle.velocity.x * deltaSeconds * 60;
       particle.position.y += particle.velocity.y * deltaSeconds * 60;
 
-      // Reset bubbles that go off screen
+      // Wrap around horizontally
+      if (particle.position.x < -particle.size) {
+        particle.position.x = DISPLAY_WIDTH + particle.size;
+      } else if (particle.position.x > DISPLAY_WIDTH + particle.size) {
+        particle.position.x = -particle.size;
+      }
+
+      // Reset to bottom when reaching top
       if (particle.position.y < -particle.size) {
         particle.position.y = TOTAL_DISPLAY_HEIGHT + particle.size;
-        particle.position.x = Math.random() * DISPLAY_WIDTH;
-      }
-      if (particle.position.x < -particle.size || particle.position.x > DISPLAY_WIDTH + particle.size) {
         particle.position.x = Math.random() * DISPLAY_WIDTH;
       }
     });
@@ -62,13 +76,13 @@ export class BubblesBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    // Clear with black background first
+  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+    // Clear with black background
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
     // Render bubbles as circles
-    this.batchRenderParticles(ctx, this.particles, 'circle');
+    this.renderParticles(ctx, this.particles, options, 'circle');
   }
 
   getState(): any {

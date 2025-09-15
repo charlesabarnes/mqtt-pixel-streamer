@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Box, Typography, Button, IconButton, Switch, FormControlLabel, Chip } from '@mui/material';
+import { Box, Typography, IconButton, Switch, FormControlLabel, Chip } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -7,7 +7,7 @@ import RadioIcon from '@mui/icons-material/Radio';
 import { Template, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT, DataFormatter, BackgroundConfig } from '@mqtt-pixel-streamer/shared';
 import { websocketService } from '../../services/websocketService';
 import { templateService } from '../../services/templateService';
-import { ClientBackgroundFactory } from './backgrounds';
+import { BackgroundFactory, ClientCanvasAdapter } from './backgrounds';
 
 
 interface PreviewCanvasProps {
@@ -103,20 +103,27 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const templateId = String(template.id);
 
     // Get background instance from factory
-    const background = ClientBackgroundFactory.getBackground(templateId, backgroundConfig);
+    const background = BackgroundFactory.getBackground(templateId, backgroundConfig);
 
     // Update background animation
     if (backgroundConfig.type !== 'solid') {
-      const currentTime = Date.now();
-      const lastUpdate = (background as any).lastUpdate || currentTime;
-      const deltaTime = currentTime - lastUpdate;
+      const state = background.getState?.() || {};
+      const lastUpdate = state.lastUpdate || Date.now();
+      const deltaTime = Date.now() - lastUpdate;
       const effectiveDeltaTime = deltaTime > 0 ? Math.min(deltaTime, 100) : 16;
 
       background.update(effectiveDeltaTime);
     }
 
-    // Render background
-    background.render(ctx, width, height, brightness);
+    // Create adapter for browser canvas compatibility
+    const canvasAdapter = new ClientCanvasAdapter(ctx);
+
+    // Render background with client-specific options
+    background.render(canvasAdapter, width, height, {
+      brightness: brightness,
+      useBatchRendering: false, // Client doesn't use batch rendering
+      useParticlePooling: false // Client doesn't use particle pooling
+    });
   };
 
 
@@ -147,7 +154,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       }
       // Clean up background when template changes
       if (template?.id) {
-        ClientBackgroundFactory.clearTemplateBackground(String(template.id));
+        BackgroundFactory.clearTemplateBackground(String(template.id));
       }
     };
   }, [template?.id, isLivePublishing]);

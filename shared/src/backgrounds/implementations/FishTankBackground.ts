@@ -1,6 +1,6 @@
-import { CanvasRenderingContext2D } from 'canvas';
-import { BackgroundConfig, BackgroundParticle, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '@mqtt-pixel-streamer/shared';
-import { BaseBackground } from './Background';
+import { BackgroundConfig, BackgroundParticle, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '../../types';
+import { BaseBackground } from '../BaseBackground';
+import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
 
 interface PlantPosition {
   x: number;
@@ -12,6 +12,10 @@ export class FishTankBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['fishtank']>;
   private fishParticles: BackgroundParticle[] = [];
   private plantPositions: PlantPosition[] = [];
+
+  constructor(platformUtils: IPlatformUtils = {}) {
+    super(platformUtils);
+  }
 
   initialize(config: BackgroundConfig): void {
     if (config.type === 'fishtank' && config.fishtank) {
@@ -83,21 +87,24 @@ export class FishTankBackground extends BaseBackground {
   update(deltaTime: number): void {
     if (!this.config) return;
 
-    // Skip updates if deltaTime is too small or too large (avoid performance issues)
+    // Skip updates if deltaTime is too small or too large
     if (deltaTime < 5 || deltaTime > 100) return;
 
     const deltaSeconds = deltaTime / 1000;
 
     // Update fish
     this.fishParticles.forEach(fish => {
-      // Update position
+      // Swimming animation
+      if (fish.swimPhase !== undefined) {
+        fish.swimPhase += deltaSeconds * 4;
+        if (fish.swimPhase > Math.PI * 2) {
+          fish.swimPhase -= Math.PI * 2;
+        }
+      }
+
+      // Movement
       fish.position.x += fish.velocity.x * deltaSeconds * 60;
       fish.position.y += fish.velocity.y * deltaSeconds * 60;
-
-      // Update swim animation phase
-      if (fish.swimPhase !== undefined) {
-        fish.swimPhase += 3 * deltaSeconds;
-      }
 
       // Bounce off walls
       if (fish.position.x <= 0 || fish.position.x >= DISPLAY_WIDTH - fish.size) {
@@ -108,8 +115,13 @@ export class FishTankBackground extends BaseBackground {
         fish.velocity.y *= -1;
       }
 
-      // Occasional random direction change
-      if (Math.random() < 0.01) {
+      // Keep fish in bounds
+      fish.position.x = Math.max(0, Math.min(DISPLAY_WIDTH - fish.size, fish.position.x));
+      fish.position.y = Math.max(0, Math.min(TOTAL_DISPLAY_HEIGHT - fish.size, fish.position.y));
+
+      // Occasional direction changes
+      if (Math.random() < 0.005) {
+        fish.velocity.x = (Math.random() > 0.5 ? 1 : -1) * this.config.swimSpeed;
         fish.velocity.y = (Math.random() - 0.5) * this.config.swimSpeed * 0.3;
       }
     });
@@ -124,80 +136,77 @@ export class FishTankBackground extends BaseBackground {
         bubble.position.y = TOTAL_DISPLAY_HEIGHT + bubble.size;
         bubble.position.x = Math.random() * DISPLAY_WIDTH;
       }
+
+      // Wrap around horizontally
+      if (bubble.position.x < -bubble.size) {
+        bubble.position.x = DISPLAY_WIDTH + bubble.size;
+      } else if (bubble.position.x > DISPLAY_WIDTH + bubble.size) {
+        bubble.position.x = -bubble.size;
+      }
     });
 
-    // Update plant sway
+    // Update plants
     this.plantPositions.forEach(plant => {
       plant.swayPhase += deltaSeconds * 2;
+      if (plant.swayPhase > Math.PI * 2) {
+        plant.swayPhase -= Math.PI * 2;
+      }
     });
 
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    // Clear with water color
-    ctx.fillStyle = this.config.waterColor;
+  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+    // Clear with aquarium background color
+    ctx.fillStyle = this.applyBrightness('#004080', options?.brightness ?? 100);
     ctx.fillRect(0, 0, width, height);
 
-    // Render plants/seaweed
-    ctx.fillStyle = '#004400';
+    const brightness = options?.brightness ?? 100;
+
+    // Render plants
+    ctx.save();
     this.plantPositions.forEach(plant => {
-      const swayOffset = Math.sin(plant.swayPhase) * 2;
-
-      // Draw simple seaweed using rectangles
-      for (let y = 0; y < plant.height; y++) {
-        const segmentSway = swayOffset * (y / plant.height);
-        ctx.fillRect(
-          plant.x + segmentSway,
-          TOTAL_DISPLAY_HEIGHT - y - 1,
-          2,
-          1
-        );
+      const sway = Math.sin(plant.swayPhase) * 2;
+      ctx.fillStyle = this.applyBrightness('#008000', brightness);
+      
+      // Simple plant rendering as rectangles
+      for (let i = 0; i < plant.height; i++) {
+        const x = plant.x + sway * (i / plant.height);
+        const y = TOTAL_DISPLAY_HEIGHT - i - 1;
+        ctx.fillRect(x, y, 1, 1);
       }
     });
-
-    // Render fish
-    this.fishParticles.forEach(fish => {
-      ctx.fillStyle = fish.color;
-
-      // Simple fish shape (rectangular body with tail)
-      const bodyLength = Math.floor(fish.size * 0.7);
-      const tailLength = Math.floor(fish.size * 0.3);
-
-      // Body
-      ctx.fillRect(fish.position.x, fish.position.y, bodyLength, Math.floor(fish.size / 2));
-
-      // Tail (triangle approximation with rectangles)
-      if (fish.direction === 'right') {
-        // Tail on left
-        ctx.fillRect(fish.position.x - tailLength, fish.position.y + Math.floor(fish.size / 4), tailLength, 1);
-      } else {
-        // Tail on right
-        ctx.fillRect(fish.position.x + bodyLength, fish.position.y + Math.floor(fish.size / 4), tailLength, 1);
-      }
-
-      // Eye
-      ctx.fillStyle = '#FFFFFF';
-      const eyeX = fish.direction === 'right' ? fish.position.x + bodyLength - 2 : fish.position.x + 1;
-      ctx.fillRect(eyeX, fish.position.y, 1, 1);
-    });
+    ctx.restore();
 
     // Render bubbles
-    this.particles.forEach(bubble => {
-      ctx.save();
-      ctx.globalAlpha = bubble.opacity;
-      ctx.fillStyle = '#FFFFFF';
+    this.renderParticles(ctx, this.particles, options, 'circle');
 
-      // Draw bubble as a small circle (approximated with rect for pixel art)
-      ctx.fillRect(bubble.position.x, bubble.position.y, bubble.size, bubble.size);
-
-      ctx.restore();
+    // Render fish
+    ctx.save();
+    this.fishParticles.forEach(fish => {
+      ctx.globalAlpha = fish.opacity * (brightness / 100);
+      ctx.fillStyle = this.applyBrightness(fish.color, brightness);
+      
+      // Simple fish rendering as rectangles/ellipses
+      const swimOffset = fish.swimPhase !== undefined ? Math.sin(fish.swimPhase) * 0.5 : 0;
+      const fishWidth = fish.size;
+      const fishHeight = fish.size * 0.6;
+      
+      ctx.fillRect(
+        fish.position.x,
+        fish.position.y + swimOffset,
+        fishWidth,
+        fishHeight
+      );
     });
+    ctx.restore();
   }
 
   cleanup(): void {
     super.cleanup();
-    this.releaseMultipleParticles(this.fishParticles);
+    if (this.platformUtils) {
+      this.releaseMultipleParticles(this.fishParticles);
+    }
     this.fishParticles = [];
     this.plantPositions = [];
   }
@@ -207,6 +216,7 @@ export class FishTankBackground extends BaseBackground {
       ...super.getState(),
       config: this.config,
       fishCount: this.fishParticles.length,
+      bubbleCount: this.particles.length,
       plantCount: this.plantPositions.length
     };
   }
