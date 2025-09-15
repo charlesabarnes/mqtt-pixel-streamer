@@ -180,11 +180,11 @@ export class DataFormatter {
       };
     }
 
-    // Fallback mock data for development/testing
+    // Fallback mock data for development/testing (temperatures in Fahrenheit)
     return {
       ...baseData,
       weather: {
-        temperature: 72,
+        temperature: 72, // Already in Fahrenheit
         humidity: 65,
         condition: 'Partly Cloudy',
         conditionCode: 'partlycloudy_day',

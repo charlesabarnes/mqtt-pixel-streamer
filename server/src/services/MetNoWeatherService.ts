@@ -133,7 +133,7 @@ export class MetNoWeatherService {
     const { sunrise, sunset } = this.calculateSunriseSunset(location.latitude, location.longitude);
 
     return {
-      temperature: Math.round(details.air_temperature),
+      temperature: Math.round((details.air_temperature * 9/5) + 32), // Convert Celsius to Fahrenheit
       humidity: Math.round(details.relative_humidity),
       condition: this.symbolCodeToCondition(symbolCode),
       conditionCode: symbolCode,

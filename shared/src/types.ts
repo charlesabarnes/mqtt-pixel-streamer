@@ -30,6 +30,9 @@ export interface Element {
   // Effect-specific properties
   effectType?: EffectType;
   effectConfig?: EffectConfig;
+  // Weather icon animation properties
+  weatherIconType?: 'condition' | 'sunrise' | 'sunset';
+  animated?: boolean;
 }
 
 export type ElementType = 'text' | 'icon' | 'shape' | 'data' | 'effect';

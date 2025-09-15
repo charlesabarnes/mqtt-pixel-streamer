@@ -15,6 +15,7 @@ import {
   EffectConfig
 } from '@mqtt-pixel-streamer/shared';
 import path from 'path';
+import { weatherAnimatedIconManager } from './AnimatedIcon';
 
 class AnimationManager {
   private animationStates: Map<string, AnimationState> = new Map();
@@ -153,6 +154,12 @@ export class CanvasRenderer {
   }
 
   public async renderTemplate(template: Template, dataValues?: Record<string, any>): Promise<Buffer> {
+    // Configure animated icon manager with template's update interval
+    weatherAnimatedIconManager.setUpdateInterval(template.updateInterval);
+
+    // Update all animated icons
+    weatherAnimatedIconManager.updateAllIcons(Date.now());
+
     // Clear canvas with background
     this.ctx.fillStyle = template.background || '#000000';
     this.ctx.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
@@ -187,7 +194,7 @@ export class CanvasRenderer {
         this.renderDataField(element, pos, dataValues);
         break;
       case 'icon':
-        await this.renderIcon(element, pos);
+        await this.renderIcon(element, pos, dataValues);
         break;
       case 'shape':
         this.renderShape(element, pos);
@@ -212,7 +219,7 @@ export class CanvasRenderer {
         this.renderDataField(element, pos, dataValues);
         break;
       case 'icon':
-        await this.renderIcon(element, pos);
+        await this.renderIcon(element, pos, dataValues);
         break;
       case 'shape':
         this.renderShape(element, pos);
@@ -300,17 +307,69 @@ export class CanvasRenderer {
     this.ctx.fillText(value, pos.x, pos.y);
   }
 
-  private async renderIcon(element: Element, pos: Position): Promise<void> {
+  private async renderIcon(element: Element, pos: Position, dataValues?: Record<string, any>): Promise<void> {
+    const size = element.size || { width: 16, height: 16 };
+
+    // Check if this is an animated weather icon
+    if (element.animated && element.weatherIconType) {
+      await this.renderAnimatedWeatherIcon(element, pos, size, dataValues);
+      return;
+    }
+
+    // Fallback to regular icon rendering
     if (!element.src) return;
 
     try {
       const imagePath = path.join(process.cwd(), 'server', 'assets', element.src);
       const image = await loadImage(imagePath);
-
-      const size = element.size || { width: 16, height: 16 };
       this.ctx.drawImage(image, pos.x, pos.y, size.width, size.height);
     } catch (error) {
       console.error(`Failed to load icon: ${element.src}`, error);
+    }
+  }
+
+  private async renderAnimatedWeatherIcon(element: Element, pos: Position, size: { width: number; height: number }, dataValues?: Record<string, any>): Promise<void> {
+    // Get weather condition code from data source or fallback
+    let conditionCode = 'clearsky_day';
+
+    if (element.dataSource && dataValues) {
+      // Use shared formatter to get the actual condition code
+      const value = DataFormatter.getDataValue(element.dataSource, dataValues);
+      if (value && typeof value === 'string') {
+        conditionCode = value;
+      }
+    }
+
+    // For sunrise/sunset, we don't need condition code from data
+    if (element.weatherIconType === 'sunrise' || element.weatherIconType === 'sunset') {
+      conditionCode = element.weatherIconType;
+    }
+
+    try {
+      const animatedIcon = weatherAnimatedIconManager.getAnimatedIcon(conditionCode, element.weatherIconType!);
+
+      if (animatedIcon) {
+        await animatedIcon.ensureLoaded();
+        const currentFrame = animatedIcon.getCurrentFrame();
+
+        if (currentFrame) {
+          this.ctx.drawImage(currentFrame, pos.x, pos.y, size.width, size.height);
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to render animated weather icon for ${element.weatherIconType}:`, error);
+    }
+
+    // Fallback to static icon if animated version fails
+    if (element.src) {
+      try {
+        const imagePath = path.join(process.cwd(), 'server', 'assets', element.src);
+        const image = await loadImage(imagePath);
+        this.ctx.drawImage(image, pos.x, pos.y, size.width, size.height);
+      } catch (error) {
+        console.error(`Failed to load fallback icon: ${element.src}`, error);
+      }
     }
   }
 
@@ -487,6 +546,12 @@ export class CanvasRenderer {
 
 
   public async renderTemplateForDisplay(template: Template, displayId: 'display1' | 'display2', dataValues?: Record<string, any>): Promise<Buffer> {
+    // Configure animated icon manager with template's update interval
+    weatherAnimatedIconManager.setUpdateInterval(template.updateInterval);
+
+    // Update all animated icons
+    weatherAnimatedIconManager.updateAllIcons(Date.now());
+
     // Use single display canvas
     this.ctx.fillStyle = template.background || '#000000';
     this.ctx.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
@@ -531,6 +596,12 @@ export class CanvasRenderer {
   }
 
   public async renderDualDisplayTemplate(template: Template, dataValues?: Record<string, any>): Promise<{ display1: Buffer; display2: Buffer }> {
+    // Configure animated icon manager with template's update interval
+    weatherAnimatedIconManager.setUpdateInterval(template.updateInterval);
+
+    // Update all animated icons
+    weatherAnimatedIconManager.updateAllIcons(Date.now());
+
     // Use unified 128x64 canvas for cross-display rendering
     this.dualCtx.fillStyle = template.background || '#000000';
     this.dualCtx.fillRect(0, 0, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT);

@@ -8,8 +8,8 @@ let weatherLocations: Array<WeatherLocation & { id: number; name: string; enable
   {
     id: 1,
     name: 'Default Location',
-    latitude: 40.7128,
-    longitude: -74.0060,
+    latitude: 38.62448740596441,
+    longitude: -90.18521936922498,
     enabled: true,
   },
 ];
@@ -286,6 +286,41 @@ router.get('/data-fields', (req: Request, res: Response) => {
   ];
 
   res.json(fields);
+});
+
+// Get available weather icon types for animated icons
+router.get('/icon-types', (req: Request, res: Response) => {
+  const iconTypes = [
+    {
+      type: 'condition',
+      label: 'Weather Condition Icon',
+      description: 'Animated icon representing current weather condition',
+      dataSource: 'weather.conditionCode',
+      animated: true,
+      frameCount: '2-3',
+      examples: ['clear-day', 'partly-cloudy', 'rain', 'snow', 'thunderstorm']
+    },
+    {
+      type: 'sunrise',
+      label: 'Sunrise Icon',
+      description: 'Animated sunrise icon',
+      dataSource: 'weather.sunrise',
+      animated: true,
+      frameCount: '3',
+      examples: ['sunrise']
+    },
+    {
+      type: 'sunset',
+      label: 'Sunset Icon',
+      description: 'Animated sunset icon',
+      dataSource: 'weather.sunset',
+      animated: true,
+      frameCount: '3',
+      examples: ['sunset']
+    }
+  ];
+
+  res.json(iconTypes);
 });
 
 export default router;
