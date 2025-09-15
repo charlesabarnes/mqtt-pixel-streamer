@@ -1,7 +1,8 @@
 export interface Template {
   id?: number;
   name: string;
-  background: string;
+  background: string; // Keep for backward compatibility
+  backgroundConfig?: BackgroundConfig;
   updateInterval: number;
   enabled: boolean;
   elements: Element[];
@@ -39,6 +40,7 @@ export type ElementType = 'text' | 'icon' | 'shape' | 'data' | 'effect';
 export type ShapeType = 'rectangle' | 'circle' | 'line';
 export type AnimationType = 'none' | 'slide' | 'fade' | 'blink' | 'scroll' | 'bounce' | 'dvd-logo' | 'fireworks' | 'rainbow';
 export type EffectType = 'dvd-logo' | 'fireworks' | 'rainbow' | 'matrix' | 'snow';
+export type BackgroundType = 'solid' | 'fireworks' | 'bubbles' | 'gradient' | 'matrix' | 'snow' | 'stars';
 
 export interface Position {
   x: number;
@@ -114,6 +116,71 @@ export interface EffectConfig {
     brightness: number;
     mode: 'background' | 'text' | 'border';
   };
+}
+
+export interface BackgroundConfig {
+  type: BackgroundType;
+  solid?: {
+    color: string;
+  };
+  fireworks?: {
+    frequency: number; // explosions per second
+    particleCount: number;
+    explosionSize: number;
+    colors: string[];
+    gravity: number;
+    trailLength: number;
+  };
+  bubbles?: {
+    count: number;
+    minSize: number;
+    maxSize: number;
+    speed: number;
+    colors: string[];
+    opacity: number;
+  };
+  gradient?: {
+    colors: string[];
+    direction: 'horizontal' | 'vertical' | 'diagonal' | 'radial';
+    speed: number; // transition speed
+    cyclic: boolean; // whether to cycle through colors
+  };
+  matrix?: {
+    characterDensity: number; // 0-1, how many columns have active streams
+    fallSpeed: number;
+    colors: string[];
+    trailLength: number;
+    characters: string; // character set to use
+  };
+  snow?: {
+    flakeCount: number;
+    minSize: number;
+    maxSize: number;
+    fallSpeed: number;
+    windSpeed: number;
+    colors: string[];
+  };
+  stars?: {
+    count: number;
+    twinkleSpeed: number;
+    colors: string[];
+    minBrightness: number;
+    maxBrightness: number;
+  };
+}
+
+export interface BackgroundParticle {
+  id: string;
+  position: Position;
+  velocity: { x: number; y: number };
+  color: string;
+  life: number;
+  maxLife: number;
+  size: number;
+  opacity: number;
+  // Type-specific properties
+  character?: string; // for matrix effect
+  twinklePhase?: number; // for stars
 }
 
 export interface Frame {

@@ -1,4 +1,4 @@
-import { createCanvas, Canvas, CanvasRenderingContext2D, loadImage } from 'canvas';
+import { createCanvas, Canvas, CanvasRenderingContext2D, loadImage, CanvasGradient } from 'canvas';
 import {
   Template,
   Element,
@@ -12,11 +12,446 @@ import {
   DataFormatter,
   AnimationState,
   Particle,
-  EffectConfig
+  EffectConfig,
+  BackgroundConfig,
+  BackgroundParticle,
+  BackgroundType
 } from '@mqtt-pixel-streamer/shared';
 import path from 'path';
 import { weatherAnimatedIconManager } from './AnimatedIcon';
 import { websocketServer } from '../websocket/WebSocketServer';
+
+interface BackgroundAnimationState {
+  templateId: string;
+  backgroundType: BackgroundType;
+  particles: BackgroundParticle[];
+  lastUpdate: number;
+  gradientPhase?: number;
+  matrixColumns?: { x: number; y: number; speed: number; character: string }[];
+}
+
+class ParticlePool {
+  private pool: BackgroundParticle[] = [];
+  private maxPoolSize = 100;
+
+  acquire(): BackgroundParticle {
+    if (this.pool.length > 0) {
+      return this.pool.pop()!;
+    }
+
+    // Create new particle if pool is empty
+    return {
+      id: '',
+      position: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 },
+      color: '#ffffff',
+      life: 0,
+      maxLife: 0,
+      size: 1,
+      opacity: 1
+    };
+  }
+
+  release(particle: BackgroundParticle): void {
+    if (this.pool.length < this.maxPoolSize) {
+      // Reset particle properties
+      particle.life = 0;
+      particle.maxLife = 0;
+      particle.opacity = 1;
+      particle.character = undefined;
+      particle.twinklePhase = undefined;
+      this.pool.push(particle);
+    }
+  }
+
+  releaseMultiple(particles: BackgroundParticle[]): void {
+    particles.forEach(particle => this.release(particle));
+  }
+}
+
+class BackgroundAnimationManager {
+  private backgroundStates: Map<string, BackgroundAnimationState> = new Map();
+  private particlePool = new ParticlePool();
+  private gradientCache = new Map<string, CanvasGradient>();
+  private static instance: BackgroundAnimationManager;
+
+  static getInstance(): BackgroundAnimationManager {
+    if (!BackgroundAnimationManager.instance) {
+      BackgroundAnimationManager.instance = new BackgroundAnimationManager();
+    }
+    return BackgroundAnimationManager.instance;
+  }
+
+  public getBackgroundState(templateId: string): BackgroundAnimationState | undefined {
+    return this.backgroundStates.get(templateId);
+  }
+
+  public clearTemplateState(templateId: string): void {
+    const state = this.backgroundStates.get(templateId);
+    if (state) {
+      // Return all particles to pool before clearing
+      this.particlePool.releaseMultiple(state.particles);
+      this.backgroundStates.delete(templateId);
+    }
+  }
+
+  public clearAllStates(): void {
+    // Return all particles to pool before clearing all states
+    this.backgroundStates.forEach(state => {
+      this.particlePool.releaseMultiple(state.particles);
+    });
+    this.backgroundStates.clear();
+    this.gradientCache.clear();
+  }
+
+  public getOrCreateGradient(ctx: CanvasRenderingContext2D, cacheKey: string, direction: string, width: number, height: number): CanvasGradient {
+    if (this.gradientCache.has(cacheKey)) {
+      return this.gradientCache.get(cacheKey)!;
+    }
+
+    let gradient: CanvasGradient;
+    switch (direction) {
+      case 'horizontal':
+        gradient = ctx.createLinearGradient(0, 0, width, 0);
+        break;
+      case 'vertical':
+        gradient = ctx.createLinearGradient(0, 0, 0, height);
+        break;
+      case 'diagonal':
+        gradient = ctx.createLinearGradient(0, 0, width, height);
+        break;
+      case 'radial':
+        gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height)/2);
+        break;
+      default:
+        gradient = ctx.createLinearGradient(0, 0, width, 0);
+    }
+
+    this.gradientCache.set(cacheKey, gradient);
+    return gradient;
+  }
+
+  public createOrUpdateBackgroundState(templateId: string, backgroundConfig: BackgroundConfig): BackgroundAnimationState {
+    let state = this.backgroundStates.get(templateId);
+    const currentTime = Date.now();
+
+    if (!state || state.backgroundType !== backgroundConfig.type) {
+      // Create new state or reset if background type changed
+      state = {
+        templateId,
+        backgroundType: backgroundConfig.type,
+        particles: [],
+        lastUpdate: currentTime, // Set initial time for new states
+        gradientPhase: 0
+      };
+
+      // Initialize type-specific state
+      this.initializeBackgroundState(state, backgroundConfig);
+      this.backgroundStates.set(templateId, state);
+    }
+
+    return state;
+  }
+
+  private initializeBackgroundState(state: BackgroundAnimationState, config: BackgroundConfig): void {
+    switch (config.type) {
+      case 'bubbles':
+        this.initializeBubbles(state, config.bubbles!);
+        break;
+      case 'snow':
+        this.initializeSnow(state, config.snow!);
+        break;
+      case 'stars':
+        this.initializeStars(state, config.stars!);
+        break;
+      case 'matrix':
+        this.initializeMatrix(state, config.matrix!);
+        break;
+    }
+  }
+
+  private initializeBubbles(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['bubbles']>): void {
+    // Release existing particles back to pool
+    this.particlePool.releaseMultiple(state.particles);
+    state.particles = [];
+
+    // Limit bubble count for better performance
+    const bubbleCount = Math.min(config.count, 12);
+
+    for (let i = 0; i < bubbleCount; i++) {
+      const size = Math.random() * (config.maxSize - config.minSize) + config.minSize;
+      const particle = this.particlePool.acquire();
+
+      particle.id = `bubble_${i}`;
+      particle.position.x = Math.random() * DISPLAY_WIDTH;
+      particle.position.y = Math.random() * TOTAL_DISPLAY_HEIGHT + TOTAL_DISPLAY_HEIGHT; // Start below screen
+      particle.velocity.x = (Math.random() - 0.5) * 0.5;
+      particle.velocity.y = -config.speed * (0.5 + Math.random() * 0.5);
+      particle.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+      particle.life = Infinity;
+      particle.maxLife = Infinity;
+      particle.size = size;
+      particle.opacity = config.opacity;
+
+      state.particles.push(particle);
+    }
+  }
+
+  private initializeSnow(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['snow']>): void {
+    // Release existing particles back to pool
+    this.particlePool.releaseMultiple(state.particles);
+    state.particles = [];
+
+    // Limit snow flake count for better performance
+    const flakeCount = Math.min(config.flakeCount, 20);
+
+    for (let i = 0; i < flakeCount; i++) {
+      const size = Math.random() * (config.maxSize - config.minSize) + config.minSize;
+      const particle = this.particlePool.acquire();
+
+      particle.id = `snowflake_${i}`;
+      particle.position.x = Math.random() * DISPLAY_WIDTH;
+      particle.position.y = Math.random() * TOTAL_DISPLAY_HEIGHT - TOTAL_DISPLAY_HEIGHT; // Start above screen
+      particle.velocity.x = config.windSpeed * (Math.random() - 0.5);
+      particle.velocity.y = config.fallSpeed * (0.5 + Math.random() * 0.5);
+      particle.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+      particle.life = Infinity;
+      particle.maxLife = Infinity;
+      particle.size = size;
+      particle.opacity = 0.8;
+
+      state.particles.push(particle);
+    }
+  }
+
+  private initializeStars(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['stars']>): void {
+    // Release existing particles back to pool
+    this.particlePool.releaseMultiple(state.particles);
+    state.particles = [];
+
+    // Limit star count for better performance
+    const starCount = Math.min(config.count, 20);
+
+    for (let i = 0; i < starCount; i++) {
+      const particle = this.particlePool.acquire();
+
+      particle.id = `star_${i}`;
+      particle.position.x = Math.random() * DISPLAY_WIDTH;
+      particle.position.y = Math.random() * TOTAL_DISPLAY_HEIGHT;
+      particle.velocity.x = 0;
+      particle.velocity.y = 0;
+      particle.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+      particle.life = Infinity;
+      particle.maxLife = Infinity;
+      particle.size = 1;
+      particle.opacity = Math.random() * (config.maxBrightness - config.minBrightness) + config.minBrightness;
+      particle.twinklePhase = Math.random() * Math.PI * 2;
+
+      state.particles.push(particle);
+    }
+  }
+
+  private initializeMatrix(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['matrix']>): void {
+    state.particles = [];
+    state.matrixColumns = [];
+
+    const columnCount = Math.floor(DISPLAY_WIDTH / 6); // Assuming 6-pixel wide characters
+    // Limit character density for better performance
+    const effectiveDensity = Math.min(config.characterDensity, 0.2);
+    const activeColumns = Math.floor(columnCount * effectiveDensity);
+
+    for (let i = 0; i < activeColumns; i++) {
+      const x = Math.floor(Math.random() * columnCount) * 6;
+      state.matrixColumns.push({
+        x,
+        y: Math.random() * TOTAL_DISPLAY_HEIGHT - config.trailLength,
+        speed: config.fallSpeed * (0.5 + Math.random() * 0.5),
+        character: config.characters[Math.floor(Math.random() * config.characters.length)]
+      });
+    }
+  }
+
+  public updateBackground(templateId: string, config: BackgroundConfig, deltaTime: number): void {
+    const state = this.backgroundStates.get(templateId);
+    if (!state) return;
+
+    // Skip updates if deltaTime is too small or too large (avoid performance issues)
+    if (deltaTime < 5 || deltaTime > 100) return;
+
+    switch (config.type) {
+      case 'fireworks':
+        this.updateFireworks(state, config.fireworks!, deltaTime);
+        break;
+      case 'bubbles':
+        this.updateBubbles(state, config.bubbles!, deltaTime);
+        break;
+      case 'gradient':
+        this.updateGradient(state, config.gradient!, deltaTime);
+        break;
+      case 'matrix':
+        this.updateMatrix(state, config.matrix!, deltaTime);
+        break;
+      case 'snow':
+        this.updateSnow(state, config.snow!, deltaTime);
+        break;
+      case 'stars':
+        this.updateStars(state, config.stars!, deltaTime);
+        break;
+    }
+
+    // Update the state's last update time
+    state.lastUpdate = Date.now();
+  }
+
+  private updateFireworks(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['fireworks']>, deltaTime: number): void {
+    // Remove expired particles and return them to pool (batch operation)
+    const expiredParticles: BackgroundParticle[] = [];
+    state.particles = state.particles.filter(particle => {
+      if (particle.life <= 0) {
+        expiredParticles.push(particle);
+        return false;
+      }
+      return true;
+    });
+
+    // Return expired particles to pool
+    this.particlePool.releaseMultiple(expiredParticles);
+
+    // Update existing particles with frame-rate independent movement
+    const deltaSeconds = deltaTime / 1000;
+    state.particles.forEach(particle => {
+      particle.position.x += particle.velocity.x * deltaSeconds * 60; // 60fps normalization
+      particle.position.y += particle.velocity.y * deltaSeconds * 60;
+      particle.velocity.y += config.gravity * deltaSeconds * 60;
+      particle.life -= deltaSeconds * 60;
+      particle.opacity = Math.max(0, particle.life / particle.maxLife);
+    });
+
+    // Spawn new fireworks (frame-rate independent)
+    if (Math.random() < config.frequency * deltaSeconds) {
+      this.spawnFirework(state, config);
+    }
+  }
+
+  private spawnFirework(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['fireworks']>): void {
+    // Limit max particles to prevent performance issues
+    if (state.particles.length > 50) return;
+
+    const explosionX = Math.random() * DISPLAY_WIDTH;
+    const explosionY = Math.random() * TOTAL_DISPLAY_HEIGHT * 0.6; // Upper area
+
+    // Reduce particle count for better performance
+    const particleCount = Math.min(config.particleCount, 6);
+
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2;
+      const speed = Math.random() * 2 + 0.5; // Reduced speed for better visibility
+
+      const particle = this.particlePool.acquire();
+      particle.id = `firework_${Date.now()}_${i}`;
+      particle.position.x = explosionX;
+      particle.position.y = explosionY;
+      particle.velocity.x = Math.cos(angle) * speed;
+      particle.velocity.y = Math.sin(angle) * speed;
+      particle.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+      particle.life = 40; // Fixed lifetime for consistency
+      particle.maxLife = 40;
+      particle.size = 1;
+      particle.opacity = 1;
+
+      state.particles.push(particle);
+    }
+  }
+
+  private updateBubbles(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['bubbles']>, deltaTime: number): void {
+    const deltaSeconds = deltaTime / 1000;
+
+    state.particles.forEach(particle => {
+      // Frame-rate independent movement
+      particle.position.x += particle.velocity.x * deltaSeconds * 60;
+      particle.position.y += particle.velocity.y * deltaSeconds * 60;
+
+      // Reset bubbles that go off screen
+      if (particle.position.y < -particle.size) {
+        particle.position.y = TOTAL_DISPLAY_HEIGHT + particle.size;
+        particle.position.x = Math.random() * DISPLAY_WIDTH;
+      }
+      if (particle.position.x < -particle.size || particle.position.x > DISPLAY_WIDTH + particle.size) {
+        particle.position.x = Math.random() * DISPLAY_WIDTH;
+      }
+    });
+  }
+
+  private updateGradient(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['gradient']>, deltaTime: number): void {
+    if (!state.gradientPhase) state.gradientPhase = 0;
+    state.gradientPhase += config.speed * deltaTime / 1000;
+    if (state.gradientPhase > 1 && config.cyclic) {
+      state.gradientPhase = 0;
+    }
+  }
+
+  private updateMatrix(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['matrix']>, deltaTime: number): void {
+    if (!state.matrixColumns) return;
+
+    const deltaSeconds = deltaTime / 1000;
+
+    state.matrixColumns.forEach(column => {
+      // Frame-rate independent movement
+      column.y += column.speed * deltaSeconds * 60;
+
+      if (column.y > TOTAL_DISPLAY_HEIGHT + config.trailLength) {
+        column.y = -config.trailLength;
+        // Change character less frequently for better performance
+        if (Math.random() < 0.1) {
+          column.character = config.characters[Math.floor(Math.random() * config.characters.length)];
+        }
+      }
+    });
+  }
+
+  private updateSnow(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['snow']>, deltaTime: number): void {
+    const deltaSeconds = deltaTime / 1000;
+
+    state.particles.forEach(particle => {
+      // Frame-rate independent movement
+      particle.position.x += particle.velocity.x * deltaSeconds * 60;
+      particle.position.y += particle.velocity.y * deltaSeconds * 60;
+
+      // Reset snowflakes that fall off screen
+      if (particle.position.y > TOTAL_DISPLAY_HEIGHT + particle.size) {
+        particle.position.y = -particle.size;
+        particle.position.x = Math.random() * DISPLAY_WIDTH;
+      }
+      if (particle.position.x < -particle.size || particle.position.x > DISPLAY_WIDTH + particle.size) {
+        particle.position.x = Math.random() * DISPLAY_WIDTH;
+      }
+    });
+  }
+
+  private updateStars(state: BackgroundAnimationState, config: NonNullable<BackgroundConfig['stars']>, deltaTime: number): void {
+    const deltaSeconds = deltaTime / 1000;
+
+    state.particles.forEach(particle => {
+      if (particle.twinklePhase !== undefined) {
+        particle.twinklePhase += config.twinkleSpeed * deltaSeconds;
+
+        // Cache sin calculation for better performance
+        const sinValue = Math.sin(particle.twinklePhase);
+        particle.opacity = config.minBrightness +
+          (config.maxBrightness - config.minBrightness) *
+          (sinValue + 1) * 0.5; // Multiply by 0.5 instead of divide by 2
+      }
+    });
+  }
+
+  public clearBackgroundState(templateId: string): void {
+    this.backgroundStates.delete(templateId);
+  }
+
+  public clearAllBackgroundStates(): void {
+    this.backgroundStates.clear();
+  }
+}
 
 class AnimationManager {
   private animationStates: Map<string, AnimationState> = new Map();
@@ -138,6 +573,7 @@ export class CanvasRenderer {
   private dualCanvas: Canvas;
   private dualCtx: CanvasRenderingContext2D;
   private animationManager: AnimationManager;
+  private backgroundAnimationManager: BackgroundAnimationManager;
 
   constructor() {
     this.canvas = createCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
@@ -148,10 +584,213 @@ export class CanvasRenderer {
     this.dualCtx = this.dualCanvas.getContext('2d');
 
     this.animationManager = AnimationManager.getInstance();
+    this.backgroundAnimationManager = BackgroundAnimationManager.getInstance();
   }
 
   public clearAnimationStates(): void {
     this.animationManager.clearAllAnimationStates();
+  }
+
+  private getBackgroundConfig(template: Template): BackgroundConfig {
+    // Use new backgroundConfig if available, otherwise fall back to legacy background color
+    if (template.backgroundConfig) {
+      return template.backgroundConfig;
+    }
+
+    // Default solid background for backward compatibility
+    return {
+      type: 'solid',
+      solid: {
+        color: template.background || '#000000'
+      }
+    };
+  }
+
+  private renderBackground(ctx: CanvasRenderingContext2D, template: Template, width: number, height: number): void {
+    const backgroundConfig = this.getBackgroundConfig(template);
+    const templateId = template.id?.toString() || 'preview';
+
+    // Update background animation state
+    if (backgroundConfig.type !== 'solid') {
+      const currentTime = Date.now();
+
+      // Get or create state without updating lastUpdate yet
+      let state = this.backgroundAnimationManager.getBackgroundState(templateId);
+      if (!state || state.backgroundType !== backgroundConfig.type) {
+        state = this.backgroundAnimationManager.createOrUpdateBackgroundState(templateId, backgroundConfig);
+      }
+
+      const deltaTime = currentTime - state.lastUpdate;
+      const effectiveDeltaTime = deltaTime > 0 ? Math.min(deltaTime, 100) : 16;
+
+      this.backgroundAnimationManager.updateBackground(templateId, backgroundConfig, effectiveDeltaTime);
+    }
+
+    // Render background based on type
+    switch (backgroundConfig.type) {
+      case 'solid':
+        ctx.fillStyle = backgroundConfig.solid?.color || '#000000';
+        ctx.fillRect(0, 0, width, height);
+        break;
+
+      case 'gradient':
+        this.renderGradientBackground(ctx, backgroundConfig.gradient!, width, height, templateId);
+        break;
+
+      case 'fireworks':
+      case 'bubbles':
+      case 'snow':
+      case 'stars':
+        // Clear with black background first
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+        this.renderParticleBackground(ctx, backgroundConfig, templateId);
+        break;
+
+      case 'matrix':
+        this.renderMatrixBackground(ctx, backgroundConfig.matrix!, width, height, templateId);
+        break;
+    }
+  }
+
+  private renderGradientBackground(ctx: CanvasRenderingContext2D, config: NonNullable<BackgroundConfig['gradient']>, width: number, height: number, templateId: string): void {
+    const state = this.backgroundAnimationManager.getBackgroundState(templateId);
+    const phase = state?.gradientPhase || 0;
+
+    // Create cache key based on direction and dimensions
+    const baseCacheKey = `${config.direction}_${width}_${height}`;
+    const gradient = this.backgroundAnimationManager.getOrCreateGradient(ctx, baseCacheKey, config.direction, width, height);
+
+    // Clear previous color stops if cached gradient exists (Canvas doesn't support this, so we create new if animated)
+    if (config.cyclic && phase > 0) {
+      // For animated gradients, we can't cache them effectively, create new each time
+      let animatedGradient: CanvasGradient;
+      switch (config.direction) {
+        case 'horizontal':
+          animatedGradient = ctx.createLinearGradient(0, 0, width, 0);
+          break;
+        case 'vertical':
+          animatedGradient = ctx.createLinearGradient(0, 0, 0, height);
+          break;
+        case 'diagonal':
+          animatedGradient = ctx.createLinearGradient(0, 0, width, height);
+          break;
+        case 'radial':
+          animatedGradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height)/2);
+          break;
+        default:
+          animatedGradient = ctx.createLinearGradient(0, 0, width, 0);
+      }
+
+      // Apply colors with animation phase
+      config.colors.forEach((color, index) => {
+        let position = index / (config.colors.length - 1);
+        position = (position + phase) % 1;
+        animatedGradient.addColorStop(Math.max(0, Math.min(1, position)), color);
+      });
+
+      ctx.fillStyle = animatedGradient;
+    } else {
+      // Use cached gradient for static gradients
+      config.colors.forEach((color, index) => {
+        let position = index / (config.colors.length - 1);
+        gradient.addColorStop(Math.max(0, Math.min(1, position)), color);
+      });
+
+      ctx.fillStyle = gradient;
+    }
+
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  private renderParticleBackground(ctx: CanvasRenderingContext2D, config: BackgroundConfig, templateId: string): void {
+    const state = this.backgroundAnimationManager.getBackgroundState(templateId);
+    if (!state?.particles || state.particles.length === 0) return;
+
+    // Batch rendering by particle type and color to reduce context switches
+    const particlesByColor = new Map<string, BackgroundParticle[]>();
+
+    state.particles.forEach(particle => {
+      const key = `${particle.color}_${particle.opacity}`;
+      if (!particlesByColor.has(key)) {
+        particlesByColor.set(key, []);
+      }
+      particlesByColor.get(key)!.push(particle);
+    });
+
+    // Render particles in batches by color/opacity
+    particlesByColor.forEach((particles, colorKey) => {
+      if (particles.length === 0) return;
+
+      const firstParticle = particles[0];
+      ctx.globalAlpha = firstParticle.opacity;
+      ctx.fillStyle = firstParticle.color;
+
+      if (config.type === 'bubbles') {
+        // Batch render circles
+        ctx.beginPath();
+        particles.forEach(particle => {
+          ctx.moveTo(particle.position.x + particle.size, particle.position.y);
+          ctx.arc(particle.position.x, particle.position.y, particle.size, 0, Math.PI * 2);
+        });
+        ctx.fill();
+      } else {
+        // Batch render rectangles
+        particles.forEach(particle => {
+          ctx.fillRect(particle.position.x, particle.position.y, particle.size, particle.size);
+        });
+      }
+    });
+
+    // Reset alpha
+    ctx.globalAlpha = 1.0;
+  }
+
+  private renderMatrixBackground(ctx: CanvasRenderingContext2D, config: NonNullable<BackgroundConfig['matrix']>, width: number, height: number, templateId: string): void {
+    // Clear with black background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+
+    const state = this.backgroundAnimationManager.getBackgroundState(templateId);
+    if (!state?.matrixColumns || state.matrixColumns.length === 0) return;
+
+    // Set font and alignment once
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'left';
+
+    // Batch render by color/alpha to reduce context switches
+    const renderBatches = new Map<string, Array<{x: number, y: number, char: string}>>();
+
+    state.matrixColumns.forEach(column => {
+      // Render trail
+      for (let i = 0; i < config.trailLength; i++) {
+        const y = column.y - i * 8;
+        if (y >= 0 && y < height) {
+          const alpha = 1 - (i / config.trailLength);
+          const colorIndex = Math.floor(alpha * (config.colors.length - 1));
+          const color = config.colors[colorIndex] || config.colors[0];
+          const key = `${color}_${alpha.toFixed(2)}`;
+
+          if (!renderBatches.has(key)) {
+            renderBatches.set(key, []);
+          }
+          renderBatches.get(key)!.push({x: column.x, y, char: column.character});
+        }
+      }
+    });
+
+    // Render in batches by color/alpha
+    renderBatches.forEach((characters, key) => {
+      const [color, alphaStr] = key.split('_');
+      ctx.globalAlpha = parseFloat(alphaStr);
+      ctx.fillStyle = color;
+
+      characters.forEach(({x, y, char}) => {
+        ctx.fillText(char, x, y);
+      });
+    });
+
+    ctx.globalAlpha = 1;
   }
 
   public async renderTemplate(template: Template, dataValues?: Record<string, any>): Promise<Buffer> {
@@ -161,9 +800,8 @@ export class CanvasRenderer {
     // Update all animated icons
     weatherAnimatedIconManager.updateAllIcons(Date.now());
 
-    // Clear canvas with background
-    this.ctx.fillStyle = template.background || '#000000';
-    this.ctx.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    // Render background
+    this.renderBackground(this.ctx, template, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
     // Sort elements by z-index if needed
     const sortedElements = [...template.elements].sort((a, b) => {
@@ -560,9 +1198,8 @@ export class CanvasRenderer {
     // Update all animated icons
     weatherAnimatedIconManager.updateAllIcons(Date.now());
 
-    // Use single display canvas
-    this.ctx.fillStyle = template.background || '#000000';
-    this.ctx.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    // Render background
+    this.renderBackground(this.ctx, template, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
     // Filter elements based on position only (seamless based on Y coordinate)
     const relevantElements = template.elements.filter(element => {
@@ -611,9 +1248,8 @@ export class CanvasRenderer {
     // Update all animated icons
     weatherAnimatedIconManager.updateAllIcons(Date.now());
 
-    // Use unified 128x64 canvas for cross-display rendering
-    this.dualCtx.fillStyle = template.background || '#000000';
-    this.dualCtx.fillRect(0, 0, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT);
+    // Render background on dual canvas
+    this.renderBackground(this.dualCtx, template, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT);
 
     // Render all visible elements to the unified canvas
     // No filtering by display bounds - elements can naturally overlap both displays

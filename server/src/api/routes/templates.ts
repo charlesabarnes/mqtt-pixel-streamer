@@ -232,6 +232,181 @@ let templates: Template[] = [
         visible: true
       }
     ]
+  },
+  {
+    id: 6,
+    name: 'Fireworks Background',
+    background: '#000000', // Legacy fallback
+    backgroundConfig: {
+      type: 'fireworks',
+      fireworks: {
+        frequency: 0.5,
+        particleCount: 6,
+        explosionSize: 20,
+        colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500'],
+        gravity: 0.1,
+        trailLength: 8
+      }
+    },
+    updateInterval: 50,
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'fireworks-text',
+        type: 'text',
+        position: { x: 30, y: 16 },
+        text: 'FIREWORKS!',
+        style: {
+          color: '#FFFFFF',
+          fontSize: 12,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 7,
+    name: 'Bubble Effect',
+    background: '#001122', // Legacy fallback
+    backgroundConfig: {
+      type: 'bubbles',
+      bubbles: {
+        count: 12,
+        minSize: 2,
+        maxSize: 5,
+        speed: 0.8,
+        colors: ['#0080FF', '#00FFFF', '#8080FF', '#80FFFF', '#ADD8E6'],
+        opacity: 0.6
+      }
+    },
+    updateInterval: 50,
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'bubble-time',
+        type: 'data',
+        position: { x: 25, y: 20 },
+        dataSource: 'time',
+        format: 'time',
+        style: {
+          color: '#FFFFFF',
+          fontSize: 14,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 8,
+    name: 'Matrix Background',
+    background: '#000000', // Legacy fallback
+    backgroundConfig: {
+      type: 'matrix',
+      matrix: {
+        characterDensity: 0.2,
+        fallSpeed: 2.5,
+        colors: ['#00FF00', '#80FF80', '#40FF40'],
+        trailLength: 10,
+        characters: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン'
+      }
+    },
+    updateInterval: 100,
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'matrix-text',
+        type: 'text',
+        position: { x: 35, y: 20 },
+        text: 'THE MATRIX',
+        style: {
+          color: '#00FF00',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 9,
+    name: 'Gradient Waves',
+    background: '#000000', // Legacy fallback
+    backgroundConfig: {
+      type: 'gradient',
+      gradient: {
+        colors: ['#FF0080', '#8000FF', '#0080FF', '#00FF80'],
+        direction: 'horizontal',
+        speed: 1.5,
+        cyclic: true
+      }
+    },
+    updateInterval: 50,
+    enabled: true,
+    displayMode: 'dual' as const,
+    elements: [
+      {
+        id: 'gradient-title',
+        type: 'text',
+        position: { x: 30, y: 16 },
+        text: 'GRADIENT',
+        style: {
+          color: '#FFFFFF',
+          fontSize: 12,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'gradient-time',
+        type: 'data',
+        position: { x: 35, y: 48 },
+        dataSource: 'time',
+        format: 'time',
+        style: {
+          color: '#FFFFFF',
+          fontSize: 10,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 10,
+    name: 'Starfield',
+    background: '#000000', // Legacy fallback
+    backgroundConfig: {
+      type: 'stars',
+      stars: {
+        count: 20,
+        twinkleSpeed: 1.5,
+        colors: ['#FFFFFF', '#FFFF80', '#80FFFF', '#FF8080', '#FFB6C1'],
+        minBrightness: 0.3,
+        maxBrightness: 1.0
+      }
+    },
+    updateInterval: 100,
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'stars-text',
+        type: 'text',
+        position: { x: 40, y: 16 },
+        text: '✦ STARS ✦',
+        style: {
+          color: '#FFFFFF',
+          fontSize: 10,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
   }
 ];
 
