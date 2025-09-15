@@ -11,9 +11,14 @@ import {
   Switch,
   FormControlLabel,
   ListSubheader,
+  Button,
+  IconButton,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { Element, ElementType, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT, AnimationType } from '@mqtt-pixel-streamer/shared';
-import { weatherService, WeatherDataField } from '../../services/weatherService';
+import { weatherService, WeatherDataField, WeatherLocation } from '../../services/weatherService';
+import LocationManagement from '../LocationManagement/LocationManagement';
 
 interface ElementPropertiesProps {
   element?: Element;
@@ -32,23 +37,38 @@ interface DataSourceOption {
 
 const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate, templateDisplayMode }) => {
   const [weatherDataFields, setWeatherDataFields] = useState<WeatherDataField[]>([]);
+  const [weatherLocations, setWeatherLocations] = useState<WeatherLocation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [locationManagementOpen, setLocationManagementOpen] = useState(false);
 
   useEffect(() => {
-    const loadWeatherDataFields = async () => {
+    const loadWeatherData = async () => {
       try {
         setLoading(true);
-        const fields = await weatherService.getDataFields();
+        const [fields, locations] = await Promise.all([
+          weatherService.getDataFields(),
+          weatherService.getLocations()
+        ]);
         setWeatherDataFields(fields);
+        setWeatherLocations(locations);
       } catch (error) {
-        console.error('Failed to load weather data fields:', error);
+        console.error('Failed to load weather data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadWeatherDataFields();
+    loadWeatherData();
   }, []);
+
+  const reloadWeatherLocations = async () => {
+    try {
+      const locations = await weatherService.getLocations();
+      setWeatherLocations(locations);
+    } catch (error) {
+      console.error('Failed to reload weather locations:', error);
+    }
+  };
 
   // Get all available data sources organized by integration
   const getDataSources = (): DataSourceOption[] => {
@@ -79,6 +99,11 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
     }));
 
     return [...builtinSources, ...weatherSources];
+  };
+
+  // Check if a data source requires location selection
+  const isLocationDependentDataSource = (dataSource: string): boolean => {
+    return dataSource === 'time' || dataSource === 'date' || dataSource?.startsWith('weather.');
   };
 
   const handleDataSourceChange = (dataSource: string) => {
@@ -242,6 +267,46 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
                 ))}
             </Select>
           </FormControl>
+
+          {element.dataSource && isLocationDependentDataSource(element.dataSource) && (
+            <Box sx={{ mt: 2 }}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Location</InputLabel>
+                <Select
+                  value={element.locationId || ''}
+                  label="Location"
+                  onChange={(e) => onUpdate({ locationId: e.target.value ? Number(e.target.value) : undefined })}
+                  disabled={loading}
+                >
+                  <MenuItem value="">
+                    <em>Default Location</em>
+                  </MenuItem>
+                  {weatherLocations.map(location => (
+                    <MenuItem key={location.id} value={location.id}>
+                      {location.name} ({location.latitude.toFixed(4)}, {location.longitude.toFixed(4)})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => setLocationManagementOpen(true)}
+                >
+                  Add Location
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<SettingsIcon />}
+                  onClick={() => setLocationManagementOpen(true)}
+                >
+                  Manage
+                </Button>
+              </Box>
+            </Box>
+          )}
 
           <TextField
             fullWidth
@@ -422,6 +487,12 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
           </>
         )}
       </Box>
+
+      <LocationManagement
+        open={locationManagementOpen}
+        onClose={() => setLocationManagementOpen(false)}
+        onLocationUpdated={reloadWeatherLocations}
+      />
     </Box>
   );
 };

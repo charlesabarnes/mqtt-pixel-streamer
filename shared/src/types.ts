@@ -25,6 +25,8 @@ export interface Element {
   src?: string;
   size?: Size;
   shape?: ShapeType;
+  // Location for timezone-dependent data (time, date, weather)
+  locationId?: number;
   // Effect-specific properties
   effectType?: EffectType;
   effectConfig?: EffectConfig;
