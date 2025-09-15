@@ -20,10 +20,6 @@ import { weatherAnimatedIconManager } from './AnimatedIcon';
 import { websocketServer } from '../websocket/WebSocketServer';
 import { BackgroundFactory, ServerCanvasAdapter } from './backgrounds';
 
-// Old background classes removed - now using individual background classes
-
-// Background system now uses individual background classes via BackgroundFactory
-
 class AnimationManager {
   private animationStates: Map<string, AnimationState> = new Map();
   private static instance: AnimationManager;

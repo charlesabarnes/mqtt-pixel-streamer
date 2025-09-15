@@ -134,10 +134,17 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
         pipes: {
           pipeWidth: 3,
           growthSpeed: 2,
-          maxPipes: 5,
+          maxPipes: 8,
           turnProbability: 0.1,
           colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'],
-          pipeLifetime: 100
+          pipeLifetime: 120,
+          maxSegments: 60,
+          fadeOut: true,
+          fadeSpeed: 0.02,
+          persistence: true,
+          glowEffect: true,
+          spawnRate: 0.08,
+          wrapAround: false
         }
       },
       fishtank: {
@@ -576,6 +583,91 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
                   max={200}
                   step={10}
                 />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Max Segments: {backgroundConfig.pipes.maxSegments || 60}
+                </Typography>
+                <Slider
+                  value={backgroundConfig.pipes.maxSegments || 60}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, maxSegments: value as number }
+                  })}
+                  min={20}
+                  max={120}
+                  step={10}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Spawn Rate: {((backgroundConfig.pipes.spawnRate || 0.08) * 100).toFixed(1)}%
+                </Typography>
+                <Slider
+                  value={(backgroundConfig.pipes.spawnRate || 0.08) * 100}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, spawnRate: (value as number) / 100 }
+                  })}
+                  min={1}
+                  max={20}
+                  step={0.5}
+                />
+
+                <Typography gutterBottom sx={{ mt: 2 }}>
+                  Fade Speed: {((backgroundConfig.pipes.fadeSpeed || 0.02) * 100).toFixed(1)}%
+                </Typography>
+                <Slider
+                  value={(backgroundConfig.pipes.fadeSpeed || 0.02) * 100}
+                  onChange={(_, value) => updateBackgroundConfig({
+                    pipes: { ...backgroundConfig.pipes!, fadeSpeed: (value as number) / 100 }
+                  })}
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                />
+
+                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={backgroundConfig.pipes.fadeOut !== false}
+                      onChange={(e) => updateBackgroundConfig({
+                        pipes: { ...backgroundConfig.pipes!, fadeOut: e.target.checked }
+                      })}
+                    />
+                    Enable Fade Out Effect
+                  </label>
+
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={backgroundConfig.pipes.persistence !== false}
+                      onChange={(e) => updateBackgroundConfig({
+                        pipes: { ...backgroundConfig.pipes!, persistence: e.target.checked }
+                      })}
+                    />
+                    Keep Pipes Visible After Growing
+                  </label>
+
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={backgroundConfig.pipes.glowEffect !== false}
+                      onChange={(e) => updateBackgroundConfig({
+                        pipes: { ...backgroundConfig.pipes!, glowEffect: e.target.checked }
+                      })}
+                    />
+                    Enable Glow Effect
+                  </label>
+
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={backgroundConfig.pipes.wrapAround === true}
+                      onChange={(e) => updateBackgroundConfig({
+                        pipes: { ...backgroundConfig.pipes!, wrapAround: e.target.checked }
+                      })}
+                    />
+                    Allow Pipes to Wrap Around Screen
+                  </label>
+                </Box>
               </Box>
             )}
 

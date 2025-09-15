@@ -5,6 +5,7 @@ import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
 export class PipesBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['pipes']>;
   private pipeSegments: BackgroundParticle[] = [];
+  private deadPipes: BackgroundParticle[] = []; // pipes that stopped growing but persist
 
   constructor(platformUtils: IPlatformUtils = {}) {
     super(platformUtils);
@@ -75,10 +76,22 @@ export class PipesBackground extends BaseBackground {
 
         // Check bounds and possibly turn
         let shouldTurn = false;
+        let shouldWrap = false;
+
         if (newX < 0 || newX >= DISPLAY_WIDTH || newY < 0 || newY >= TOTAL_DISPLAY_HEIGHT) {
-          shouldTurn = true;
+          if (this.config.wrapAround) {
+            shouldWrap = true;
+          } else {
+            shouldTurn = true;
+          }
         } else if (Math.random() < this.config.turnProbability) {
           shouldTurn = true;
+        }
+
+        if (shouldWrap) {
+          // Wrap around screen edges
+          newX = ((newX % DISPLAY_WIDTH) + DISPLAY_WIDTH) % DISPLAY_WIDTH;
+          newY = ((newY % TOTAL_DISPLAY_HEIGHT) + TOTAL_DISPLAY_HEIGHT) % TOTAL_DISPLAY_HEIGHT;
         }
 
         if (shouldTurn) {
@@ -121,8 +134,8 @@ export class PipesBackground extends BaseBackground {
           pipe.isGrowing = false;
         }
 
-        // Limit segment length (use fixed value since config doesn't have maxLength)
-        const maxLength = 20;
+        // Limit segment length
+        const maxLength = this.config.maxSegments || 60;
         if (pipe.segments.length > maxLength) {
           pipe.segments.shift();
         }
@@ -135,18 +148,50 @@ export class PipesBackground extends BaseBackground {
       }
     });
 
-    // Remove dead pipes and spawn new ones
+    // Handle persistence - move stopped pipes to deadPipes if persistence is enabled
+    if (this.config.persistence) {
+      const stoppedPipes = this.pipeSegments.filter(pipe => !pipe.isGrowing);
+      stoppedPipes.forEach(pipe => {
+        if (!this.deadPipes.find(dp => dp.id === pipe.id)) {
+          // Copy pipe to deadPipes with full opacity for persistence
+          const persistedPipe = { ...pipe };
+          persistedPipe.opacity = 1.0; // Reset opacity for fade out
+          this.deadPipes.push(persistedPipe);
+        }
+      });
+    }
+
+    // Remove dead pipes (only if they're both not growing AND out of life)
     const usePooling = !!this.platformUtils;
     if (usePooling) {
-      const deadPipes = this.pipeSegments.filter(pipe => pipe.life <= 0 && !pipe.isGrowing);
-      this.pipeSegments = this.pipeSegments.filter(pipe => pipe.life > 0 || pipe.isGrowing);
+      const deadPipes = this.pipeSegments.filter(pipe => pipe.life <= 0 && !pipe.isGrowing && !this.config.persistence);
+      if (!this.config.persistence) {
+        this.pipeSegments = this.pipeSegments.filter(pipe => !(pipe.life <= 0 && !pipe.isGrowing));
+      } else {
+        // With persistence, only remove pipes that have been moved to deadPipes
+        this.pipeSegments = this.pipeSegments.filter(pipe => pipe.isGrowing || pipe.life > 0);
+      }
       this.releaseMultipleParticles(deadPipes);
     } else {
-      this.pipeSegments = this.pipeSegments.filter(pipe => pipe.life > 0 || pipe.isGrowing);
+      if (!this.config.persistence) {
+        this.pipeSegments = this.pipeSegments.filter(pipe => !(pipe.life <= 0 && !pipe.isGrowing));
+      } else {
+        // With persistence, only remove pipes that have been moved to deadPipes
+        this.pipeSegments = this.pipeSegments.filter(pipe => pipe.isGrowing || pipe.life > 0);
+      }
+    }
+
+    // Handle fade out for dead pipes
+    if (this.config.fadeOut) {
+      this.deadPipes = this.deadPipes.filter(pipe => {
+        pipe.opacity = Math.max(0, pipe.opacity - (this.config.fadeSpeed || 0.02) * deltaSeconds);
+        return pipe.opacity > 0.01; // Keep pipes until almost completely faded
+      });
     }
 
     // Spawn new pipes if needed
-    if (this.pipeSegments.length < this.config.maxPipes && Math.random() < 0.02) {
+    const spawnRate = this.config.spawnRate || 0.05;
+    if (this.pipeSegments.length < this.config.maxPipes && Math.random() < spawnRate) {
       this.spawnNewPipe();
     }
 
@@ -180,27 +225,101 @@ export class PipesBackground extends BaseBackground {
 
     const brightness = options?.brightness ?? 100;
 
-    this.pipeSegments.forEach(pipe => {
-      if (!pipe.segments) return;
+    // Render growing pipes
+    this.renderPipes(ctx, this.pipeSegments, brightness);
+
+    // Render dead/fading pipes if persistence is enabled
+    if (this.config.persistence || this.config.fadeOut) {
+      this.renderPipes(ctx, this.deadPipes, brightness);
+    }
+  }
+
+  private renderPipes(ctx: ICanvasContext, pipes: BackgroundParticle[], brightness: number): void {
+    pipes.forEach(pipe => {
+      if (!pipe.segments || pipe.segments.length === 0) return;
 
       ctx.save();
-      ctx.globalAlpha = pipe.opacity * (brightness / 100);
-      ctx.fillStyle = this.applyBrightness(pipe.color, brightness);
 
-      pipe.segments.forEach(segment => {
-        ctx.fillRect(segment.x, segment.y, pipe.size, pipe.size);
+      // Render pipe segments with gradient effect
+      pipe.segments.forEach((segment, index) => {
+        const segmentAge = (pipe.segments!.length - index) / pipe.segments!.length;
+        let segmentOpacity = pipe.opacity;
+
+        // Apply gradient fade along the pipe length
+        if (this.config.fadeOut) {
+          segmentOpacity *= Math.max(0.2, segmentAge);
+        }
+
+        ctx.globalAlpha = segmentOpacity * (brightness / 100);
+
+        // Apply glow effect if enabled
+        if (this.config.glowEffect) {
+          this.renderGlowSegment(ctx, segment, pipe, brightness);
+        } else {
+          ctx.fillStyle = this.applyBrightness(pipe.color, brightness);
+          ctx.fillRect(segment.x, segment.y, pipe.size, pipe.size);
+        }
+
+        // Render connectors at turns
+        if (index > 0) {
+          this.renderConnector(ctx, pipe.segments![index - 1], segment, pipe, brightness);
+        }
       });
 
       ctx.restore();
     });
   }
 
+  private renderGlowSegment(ctx: ICanvasContext, segment: Position, pipe: BackgroundParticle, brightness: number): void {
+    const glowSize = pipe.size + 2;
+    const glowX = segment.x - 1;
+    const glowY = segment.y - 1;
+
+    // Create glow gradient
+    const gradient = ctx.createRadialGradient(
+      segment.x + pipe.size / 2, segment.y + pipe.size / 2, 0,
+      segment.x + pipe.size / 2, segment.y + pipe.size / 2, glowSize
+    );
+
+    const baseColor = this.applyBrightness(pipe.color, brightness);
+    gradient.addColorStop(0, baseColor);
+    gradient.addColorStop(0.7, baseColor + '80'); // 50% opacity
+    gradient.addColorStop(1, baseColor + '00'); // transparent
+
+    // Render glow
+    ctx.fillStyle = gradient;
+    ctx.fillRect(glowX, glowY, glowSize, glowSize);
+
+    // Render solid center
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(segment.x, segment.y, pipe.size, pipe.size);
+  }
+
+  private renderConnector(ctx: ICanvasContext, prevSegment: Position, currentSegment: Position, pipe: BackgroundParticle, brightness: number): void {
+    // Only render connectors at turns (when direction changes)
+    const dx = currentSegment.x - prevSegment.x;
+    const dy = currentSegment.y - prevSegment.y;
+
+    if (Math.abs(dx) === pipe.size && Math.abs(dy) === 0) return; // horizontal move
+    if (Math.abs(dy) === pipe.size && Math.abs(dx) === 0) return; // vertical move
+
+    // This is a turn, render a small connector
+    ctx.fillStyle = this.applyBrightness(pipe.color, brightness);
+    const connectorSize = Math.max(1, pipe.size - 1);
+    const connectorX = prevSegment.x + (pipe.size - connectorSize) / 2;
+    const connectorY = prevSegment.y + (pipe.size - connectorSize) / 2;
+
+    ctx.fillRect(connectorX, connectorY, connectorSize, connectorSize);
+  }
+
   cleanup(): void {
     super.cleanup();
     if (this.platformUtils) {
       this.releaseMultipleParticles(this.pipeSegments);
+      this.releaseMultipleParticles(this.deadPipes);
     }
     this.pipeSegments = [];
+    this.deadPipes = [];
   }
 
   getState(): any {

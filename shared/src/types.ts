@@ -176,6 +176,13 @@ export interface BackgroundConfig {
     turnProbability: number;
     colors: string[];
     pipeLifetime: number; // frames before a pipe stops growing
+    maxSegments: number; // maximum segments per pipe
+    fadeOut: boolean; // enable gradual fade out
+    fadeSpeed: number; // fade speed (0-1)
+    persistence: boolean; // keep pipes visible after growing stops
+    glowEffect: boolean; // enable glow rendering
+    spawnRate: number; // probability of spawning new pipes (0-1)
+    wrapAround: boolean; // allow pipes to wrap around screen edges
   };
   fishtank?: {
     fishCount: number;

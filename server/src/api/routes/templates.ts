@@ -58,10 +58,17 @@ let templates: Template[] = [
       pipes: {
         pipeWidth: 3,
         growthSpeed: 2,
-        maxPipes: 5,
+        maxPipes: 8,
         turnProbability: 0.15,
         colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'],
-        pipeLifetime: 80
+        pipeLifetime: 120,
+        maxSegments: 60,
+        fadeOut: true,
+        fadeSpeed: 0.02,
+        persistence: true,
+        glowEffect: true,
+        spawnRate: 0.08,
+        wrapAround: false
       }
     },
     background: '#000000',
