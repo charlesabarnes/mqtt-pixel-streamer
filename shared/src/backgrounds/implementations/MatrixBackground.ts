@@ -1,6 +1,6 @@
 import { BackgroundConfig, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '../../types';
 import { BaseBackground } from '../BaseBackground';
-import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
+import { ICanvasContext, IPlatformUtils } from '../types';
 
 interface MatrixColumn {
   x: number;
@@ -70,14 +70,12 @@ export class MatrixBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+  render(ctx: ICanvasContext, width: number, height: number): void {
     // Clear with black background
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
     if (this.matrixColumns.length === 0) return;
-
-    const brightness = options?.brightness ?? 100;
 
     this.matrixColumns.forEach(column => {
       // Render trail of pixel squares
@@ -85,14 +83,14 @@ export class MatrixBackground extends BaseBackground {
         const y = column.y - i * column.pixelSize;
         if (y >= -column.pixelSize && y <= TOTAL_DISPLAY_HEIGHT) {
           const alpha = (1 - i / this.config.trailLength) * 0.8;
-          
+
           ctx.save();
-          ctx.globalAlpha = alpha * (brightness / 100);
-          
+          ctx.globalAlpha = alpha;
+
           // Use primary color with fade effect
           const baseColor = this.config.colors[0] || '#00ff00';
-          ctx.fillStyle = this.applyBrightness(baseColor, brightness);
-          
+          ctx.fillStyle = baseColor;
+
           ctx.fillRect(column.x, y, column.pixelSize, column.pixelSize);
           ctx.restore();
         }

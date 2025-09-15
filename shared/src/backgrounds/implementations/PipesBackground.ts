@@ -1,6 +1,6 @@
 import { BackgroundConfig, BackgroundParticle, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT, Position } from '../../types';
 import { BaseBackground } from '../BaseBackground';
-import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
+import { ICanvasContext, IPlatformUtils } from '../types';
 
 export class PipesBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['pipes']>;
@@ -218,23 +218,21 @@ export class PipesBackground extends BaseBackground {
     this.pipeSegments.push(particle);
   }
 
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+  render(ctx: ICanvasContext, width: number, height: number): void {
     // Clear with black background
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
-    const brightness = options?.brightness ?? 100;
-
     // Render growing pipes
-    this.renderPipes(ctx, this.pipeSegments, brightness);
+    this.renderPipes(ctx, this.pipeSegments);
 
     // Render dead/fading pipes if persistence is enabled
     if (this.config.persistence || this.config.fadeOut) {
-      this.renderPipes(ctx, this.deadPipes, brightness);
+      this.renderPipes(ctx, this.deadPipes);
     }
   }
 
-  private renderPipes(ctx: ICanvasContext, pipes: BackgroundParticle[], brightness: number): void {
+  private renderPipes(ctx: ICanvasContext, pipes: BackgroundParticle[]): void {
     pipes.forEach(pipe => {
       if (!pipe.segments || pipe.segments.length === 0) return;
 
@@ -250,19 +248,19 @@ export class PipesBackground extends BaseBackground {
           segmentOpacity *= Math.max(0.2, segmentAge);
         }
 
-        ctx.globalAlpha = segmentOpacity * (brightness / 100);
+        ctx.globalAlpha = segmentOpacity;
 
         // Apply glow effect if enabled
         if (this.config.glowEffect) {
-          this.renderGlowSegment(ctx, segment, pipe, brightness);
+          this.renderGlowSegment(ctx, segment, pipe);
         } else {
-          ctx.fillStyle = this.applyBrightness(pipe.color, brightness);
+          ctx.fillStyle = pipe.color;
           ctx.fillRect(segment.x, segment.y, pipe.size, pipe.size);
         }
 
         // Render connectors at turns
         if (index > 0) {
-          this.renderConnector(ctx, pipe.segments![index - 1], segment, pipe, brightness);
+          this.renderConnector(ctx, pipe.segments![index - 1], segment, pipe);
         }
       });
 
@@ -270,7 +268,7 @@ export class PipesBackground extends BaseBackground {
     });
   }
 
-  private renderGlowSegment(ctx: ICanvasContext, segment: Position, pipe: BackgroundParticle, brightness: number): void {
+  private renderGlowSegment(ctx: ICanvasContext, segment: Position, pipe: BackgroundParticle): void {
     const glowSize = pipe.size + 2;
     const glowX = segment.x - 1;
     const glowY = segment.y - 1;
@@ -281,7 +279,7 @@ export class PipesBackground extends BaseBackground {
       segment.x + pipe.size / 2, segment.y + pipe.size / 2, glowSize
     );
 
-    const baseColor = this.applyBrightness(pipe.color, brightness);
+    const baseColor = pipe.color;
     gradient.addColorStop(0, baseColor);
     gradient.addColorStop(0.7, baseColor + '80'); // 50% opacity
     gradient.addColorStop(1, baseColor + '00'); // transparent
@@ -295,7 +293,7 @@ export class PipesBackground extends BaseBackground {
     ctx.fillRect(segment.x, segment.y, pipe.size, pipe.size);
   }
 
-  private renderConnector(ctx: ICanvasContext, prevSegment: Position, currentSegment: Position, pipe: BackgroundParticle, brightness: number): void {
+  private renderConnector(ctx: ICanvasContext, prevSegment: Position, currentSegment: Position, pipe: BackgroundParticle): void {
     // Only render connectors at turns (when direction changes)
     const dx = currentSegment.x - prevSegment.x;
     const dy = currentSegment.y - prevSegment.y;
@@ -304,7 +302,7 @@ export class PipesBackground extends BaseBackground {
     if (Math.abs(dy) === pipe.size && Math.abs(dx) === 0) return; // vertical move
 
     // This is a turn, render a small connector
-    ctx.fillStyle = this.applyBrightness(pipe.color, brightness);
+    ctx.fillStyle = pipe.color;
     const connectorSize = Math.max(1, pipe.size - 1);
     const connectorX = prevSegment.x + (pipe.size - connectorSize) / 2;
     const connectorY = prevSegment.y + (pipe.size - connectorSize) / 2;

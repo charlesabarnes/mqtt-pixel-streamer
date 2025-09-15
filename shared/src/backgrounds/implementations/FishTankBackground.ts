@@ -1,6 +1,6 @@
 import { BackgroundConfig, BackgroundParticle, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '../../types';
 import { BaseBackground } from '../BaseBackground';
-import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
+import { ICanvasContext, IPlatformUtils } from '../types';
 
 interface PlantPosition {
   x: number;
@@ -156,19 +156,17 @@ export class FishTankBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+  render(ctx: ICanvasContext, width: number, height: number): void {
     // Clear with aquarium background color
-    ctx.fillStyle = this.applyBrightness('#004080', options?.brightness ?? 100);
+    ctx.fillStyle = '#004080';
     ctx.fillRect(0, 0, width, height);
-
-    const brightness = options?.brightness ?? 100;
 
     // Render plants
     ctx.save();
     this.plantPositions.forEach(plant => {
       const sway = Math.sin(plant.swayPhase) * 2;
-      ctx.fillStyle = this.applyBrightness('#008000', brightness);
-      
+      ctx.fillStyle = '#008000';
+
       // Simple plant rendering as rectangles
       for (let i = 0; i < plant.height; i++) {
         const x = plant.x + sway * (i / plant.height);
@@ -179,19 +177,19 @@ export class FishTankBackground extends BaseBackground {
     ctx.restore();
 
     // Render bubbles
-    this.renderParticles(ctx, this.particles, options, 'circle');
+    this.renderParticles(ctx, this.particles, undefined, 'circle');
 
     // Render fish
     ctx.save();
     this.fishParticles.forEach(fish => {
-      ctx.globalAlpha = fish.opacity * (brightness / 100);
-      ctx.fillStyle = this.applyBrightness(fish.color, brightness);
-      
+      ctx.globalAlpha = fish.opacity;
+      ctx.fillStyle = fish.color;
+
       // Simple fish rendering as rectangles/ellipses
       const swimOffset = fish.swimPhase !== undefined ? Math.sin(fish.swimPhase) * 0.5 : 0;
       const fishWidth = fish.size;
       const fishHeight = fish.size * 0.6;
-      
+
       ctx.fillRect(
         fish.position.x,
         fish.position.y + swimOffset,

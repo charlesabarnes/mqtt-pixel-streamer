@@ -1,6 +1,6 @@
 import { BackgroundConfig } from '../../types';
 import { BaseBackground } from '../BaseBackground';
-import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
+import { ICanvasContext, IPlatformUtils } from '../types';
 
 export class GradientBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['gradient']>;
@@ -31,10 +31,8 @@ export class GradientBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+  render(ctx: ICanvasContext, width: number, height: number): void {
     if (!this.config) return;
-
-    const brightness = options?.brightness ?? 100;
 
     // Create gradient based on direction
     let gradient: CanvasGradient;
@@ -46,23 +44,21 @@ export class GradientBackground extends BaseBackground {
       // For animated gradients, create new gradient each time
       gradient = this.createGradient(ctx, this.config.direction, width, height);
 
-      // Apply colors with animation phase and brightness
+      // Apply colors with animation phase
       this.config.colors.forEach((color, index) => {
         let position = index / (this.config.colors.length - 1);
         position = (position + this.gradientPhase) % 1;
-        const adjustedColor = this.applyBrightness(color, brightness);
-        gradient.addColorStop(Math.max(0, Math.min(1, position)), adjustedColor);
+        gradient.addColorStop(Math.max(0, Math.min(1, position)), color);
       });
     } else {
       // Use cached gradient for static gradients (server optimization)
       // Client will just recreate each time (simpler approach)
       gradient = this.getOrCreateGradient(ctx, baseCacheKey, this.config.direction, width, height);
 
-      // Apply colors with brightness
+      // Apply colors
       this.config.colors.forEach((color, index) => {
         const position = index / (this.config.colors.length - 1);
-        const adjustedColor = this.applyBrightness(color, brightness);
-        gradient.addColorStop(Math.max(0, Math.min(1, position)), adjustedColor);
+        gradient.addColorStop(Math.max(0, Math.min(1, position)), color);
       });
     }
 

@@ -1,6 +1,6 @@
 import { BackgroundConfig } from '../../types';
 import { BaseBackground } from '../BaseBackground';
-import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
+import { ICanvasContext, IPlatformUtils } from '../types';
 
 export class SolidBackground extends BaseBackground {
   private color: string = '#000000';
@@ -22,10 +22,8 @@ export class SolidBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
-    const brightness = options?.brightness ?? 100;
-    const color = this.applyBrightness(this.color, brightness);
-    ctx.fillStyle = color;
+  render(ctx: ICanvasContext, width: number, height: number): void {
+    ctx.fillStyle = this.color;
     ctx.fillRect(0, 0, width, height);
   }
 

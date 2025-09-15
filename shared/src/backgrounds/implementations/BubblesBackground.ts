@@ -1,6 +1,6 @@
 import { BackgroundConfig, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '../../types';
 import { BaseBackground } from '../BaseBackground';
-import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
+import { ICanvasContext, IPlatformUtils } from '../types';
 
 export class BubblesBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['bubbles']>;
@@ -76,13 +76,13 @@ export class BubblesBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+  render(ctx: ICanvasContext, width: number, height: number): void {
     // Clear with black background
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
     // Render bubbles as circles
-    this.renderParticles(ctx, this.particles, options, 'circle');
+    this.renderParticles(ctx, this.particles, undefined, 'circle');
   }
 
   getState(): any {

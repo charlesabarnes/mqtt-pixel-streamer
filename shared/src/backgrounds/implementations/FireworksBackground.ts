@@ -1,6 +1,6 @@
 import { BackgroundConfig, DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT } from '../../types';
 import { BaseBackground } from '../BaseBackground';
-import { ICanvasContext, IRenderOptions, IPlatformUtils } from '../types';
+import { ICanvasContext, IPlatformUtils } from '../types';
 
 export class FireworksBackground extends BaseBackground {
   private config!: NonNullable<BackgroundConfig['fireworks']>;
@@ -41,13 +41,13 @@ export class FireworksBackground extends BaseBackground {
     this.lastUpdate = Date.now();
   }
 
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void {
+  render(ctx: ICanvasContext, width: number, height: number): void {
     // Clear with black background first
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
 
     // Render particles using platform-specific optimizations
-    this.renderParticles(ctx, this.particles, options, 'rect');
+    this.renderParticles(ctx, this.particles, undefined, 'rect');
   }
 
   private spawnFirework(): void {

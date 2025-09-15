@@ -48,52 +48,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     };
   };
 
-  // Helper function to apply brightness to colors
-  const applyBrightness = (color: string): string => {
-    const brightnessFactor = brightness / 100;
-
-    // Handle hex colors
-    if (color.startsWith('#')) {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-
-      const dimmedR = Math.round(r * brightnessFactor);
-      const dimmedG = Math.round(g * brightnessFactor);
-      const dimmedB = Math.round(b * brightnessFactor);
-
-      return `#${dimmedR.toString(16).padStart(2, '0')}${dimmedG.toString(16).padStart(2, '0')}${dimmedB.toString(16).padStart(2, '0')}`;
-    }
-
-    // Handle rgb/rgba colors
-    if (color.startsWith('rgb')) {
-      const matches = color.match(/\d+/g);
-      if (matches && matches.length >= 3) {
-        const r = Math.round(parseInt(matches[0]) * brightnessFactor);
-        const g = Math.round(parseInt(matches[1]) * brightnessFactor);
-        const b = Math.round(parseInt(matches[2]) * brightnessFactor);
-        const a = matches[3] ? parseInt(matches[3]) : 255;
-
-        return matches.length > 3 ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
-      }
-    }
-
-    // Handle hsl colors
-    if (color.startsWith('hsl')) {
-      const matches = color.match(/\d+/g);
-      if (matches && matches.length >= 3) {
-        const h = matches[0];
-        const s = matches[1];
-        const l = Math.round(parseInt(matches[2]) * brightnessFactor);
-        const a = matches[3] ? parseInt(matches[3]) : 1;
-
-        return matches.length > 3 ? `hsla(${h}, ${s}%, ${l}%, ${a})` : `hsl(${h}, ${s}%, ${l}%)`;
-      }
-    }
-
-    // Return original color if we can't parse it
-    return color;
-  };
 
   // Render background based on configuration
   const renderBackground = (ctx: CanvasRenderingContext2D, template: Template, width: number, height: number): void => {
@@ -118,12 +72,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     // Create adapter for browser canvas compatibility
     const canvasAdapter = new ClientCanvasAdapter(ctx);
 
-    // Render background with client-specific options
-    background.render(canvasAdapter, width, height, {
-      brightness: brightness,
-      useBatchRendering: false, // Client doesn't use batch rendering
-      useParticlePooling: false // Client doesn't use particle pooling
-    });
+    // Render background
+    background.render(canvasAdapter, width, height);
   };
 
 
@@ -198,15 +148,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Apply brightness to the frame data
-    const brightnessFactor = brightness / 100;
-    const dimmedBytes = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i += 4) {
-      dimmedBytes[i] = Math.round(bytes[i] * brightnessFactor);     // R
-      dimmedBytes[i + 1] = Math.round(bytes[i + 1] * brightnessFactor); // G
-      dimmedBytes[i + 2] = Math.round(bytes[i + 2] * brightnessFactor); // B
-      dimmedBytes[i + 3] = bytes[i + 3]; // A (keep alpha unchanged)
-    }
+    // Frame data is already brightness-adjusted on the server side
+    const dimmedBytes = bytes;
 
     const ctx1 = canvas1.getContext('2d');
     if (!ctx1) return;
@@ -320,7 +263,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   ) => {
     const style = element.style || {};
     const baseColor = style.color || '#FFFFFF';
-    ctx.fillStyle = applyBrightness(baseColor);
+    ctx.fillStyle = baseColor;
     ctx.font = `${style.fontSize || 12}px ${style.fontFamily || 'monospace'}`;
 
     switch (element.type) {
@@ -351,11 +294,11 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const style = element.style || {};
 
     const strokeColor = style.borderColor || style.color || '#FFFFFF';
-    ctx.strokeStyle = applyBrightness(strokeColor);
+    ctx.strokeStyle = strokeColor;
     ctx.lineWidth = style.borderWidth || 1;
 
     if (style.backgroundColor) {
-      ctx.fillStyle = applyBrightness(style.backgroundColor);
+      ctx.fillStyle = style.backgroundColor;
     }
 
     switch (element.shape) {

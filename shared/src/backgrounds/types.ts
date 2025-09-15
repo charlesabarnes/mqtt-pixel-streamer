@@ -34,11 +34,6 @@ export interface ICanvasContext {
  */
 export interface IRenderOptions {
   /**
-   * Brightness factor (0-100, client-only)
-   */
-  brightness?: number;
-
-  /**
    * Whether to use batch rendering optimizations (server-only)
    */
   useBatchRendering?: boolean;
@@ -69,9 +64,8 @@ export interface IBackground {
    * @param ctx Canvas rendering context
    * @param width Canvas width
    * @param height Canvas height
-   * @param options Platform-specific render options
    */
-  render(ctx: ICanvasContext, width: number, height: number, options?: IRenderOptions): void;
+  render(ctx: ICanvasContext, width: number, height: number): void;
 
   /**
    * Clean up any resources
@@ -88,11 +82,6 @@ export interface IBackground {
  * Platform-specific utilities interface
  */
 export interface IPlatformUtils {
-  /**
-   * Apply brightness to a color (client-only feature)
-   */
-  applyBrightness?(color: string, brightness: number): string;
-
   /**
    * Get optimized particle renderer (server-only feature)
    */

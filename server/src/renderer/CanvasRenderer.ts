@@ -194,11 +194,8 @@ export class CanvasRenderer {
     // Create adapter for node-canvas compatibility
     const canvasAdapter = new ServerCanvasAdapter(ctx);
 
-    // Render background with server-specific optimizations
-    background.render(canvasAdapter, width, height, {
-      useBatchRendering: true,
-      useParticlePooling: true
-    });
+    // Render background
+    background.render(canvasAdapter, width, height);
   }
 
   // Gradient rendering is now handled by GradientBackground class
@@ -238,7 +235,7 @@ export class CanvasRenderer {
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
     const brightness = websocketServer.getBrightness();
-    return this.swapRedBlueChannels(rawBuffer, brightness);
+    return this.postProcessFrame(rawBuffer, brightness);
   }
 
   private async renderElement(element: Element, dataValues?: Record<string, any>): Promise<void> {
@@ -585,28 +582,50 @@ export class CanvasRenderer {
     };
   }
 
-  private swapRedBlueChannels(buffer: Buffer, brightness?: number): Buffer {
+  private swapRedBlueChannels(buffer: Buffer): Buffer {
     // Create a copy of the buffer to avoid modifying the original
     const swappedBuffer = Buffer.from(buffer);
 
-    // Calculate brightness factor (default to 100% if not provided)
-    const brightnessFactor = brightness ? brightness / 100 : 1.0;
-
     // RGBA format: each pixel is 4 bytes (R, G, B, A)
-    // We need to swap R (index 0) with B (index 2) for each pixel and apply brightness
+    // Swap R (index 0) with B (index 2) for each pixel
     for (let i = 0; i < swappedBuffer.length; i += 4) {
       const red = swappedBuffer[i];     // Original red channel
-      const green = swappedBuffer[i + 1]; // Original green channel
       const blue = swappedBuffer[i + 2]; // Original blue channel
 
-      // Apply brightness and swap red/blue channels
-      swappedBuffer[i] = Math.round(blue * brightnessFactor);      // Put dimmed blue in red position
-      swappedBuffer[i + 1] = Math.round(green * brightnessFactor); // Apply brightness to green
-      swappedBuffer[i + 2] = Math.round(red * brightnessFactor);   // Put dimmed red in blue position
-      // Alpha (i + 3) remains unchanged
+      // Swap red/blue channels
+      swappedBuffer[i] = blue;      // Put blue in red position
+      swappedBuffer[i + 2] = red;   // Put red in blue position
+      // Green (i + 1) and Alpha (i + 3) remain unchanged
     }
 
     return swappedBuffer;
+  }
+
+  private applyBrightness(buffer: Buffer, brightness: number): Buffer {
+    // Create a copy of the buffer to avoid modifying the original
+    const dimmedBuffer = Buffer.from(buffer);
+
+    // Calculate brightness factor
+    const brightnessFactor = brightness / 100;
+
+    // RGBA format: each pixel is 4 bytes (R, G, B, A)
+    // Apply brightness to R, G, B channels
+    for (let i = 0; i < dimmedBuffer.length; i += 4) {
+      dimmedBuffer[i] = Math.round(dimmedBuffer[i] * brightnessFactor);       // Red
+      dimmedBuffer[i + 1] = Math.round(dimmedBuffer[i + 1] * brightnessFactor); // Green
+      dimmedBuffer[i + 2] = Math.round(dimmedBuffer[i + 2] * brightnessFactor); // Blue
+      // Alpha (i + 3) remains unchanged
+    }
+
+    return dimmedBuffer;
+  }
+
+  private postProcessFrame(buffer: Buffer, brightness: number): Buffer {
+    // First swap red/blue channels to fix color display
+    const swappedBuffer = this.swapRedBlueChannels(buffer);
+
+    // Then apply brightness
+    return this.applyBrightness(swappedBuffer, brightness);
   }
 
 
@@ -657,7 +676,7 @@ export class CanvasRenderer {
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
     const brightness = websocketServer.getBrightness();
-    return this.swapRedBlueChannels(rawBuffer, brightness);
+    return this.postProcessFrame(rawBuffer, brightness);
   }
 
   public async renderDualDisplayTemplate(template: Template, dataValues?: Record<string, any>): Promise<{ display1: Buffer; display2: Buffer }> {
@@ -689,14 +708,14 @@ export class CanvasRenderer {
     // Extract display portions from the unified canvas
     const unifiedBuffer = this.dualCanvas.toBuffer('raw');
     const brightness = websocketServer.getBrightness();
-    const swappedUnifiedBuffer = this.swapRedBlueChannels(unifiedBuffer, brightness);
+    const processedUnifiedBuffer = this.postProcessFrame(unifiedBuffer, brightness);
 
     // Extract top half (display1: 0,0,128,32)
     const display1Buffer = Buffer.alloc(FRAME_SIZE);
     for (let y = 0; y < DISPLAY_HEIGHT; y++) {
       const sourceRowStart = y * DISPLAY_WIDTH * 4;
       const destRowStart = y * DISPLAY_WIDTH * 4;
-      swappedUnifiedBuffer.copy(display1Buffer, destRowStart, sourceRowStart, sourceRowStart + DISPLAY_WIDTH * 4);
+      processedUnifiedBuffer.copy(display1Buffer, destRowStart, sourceRowStart, sourceRowStart + DISPLAY_WIDTH * 4);
     }
 
     // Extract bottom half (display2: 0,32,128,32)
@@ -704,7 +723,7 @@ export class CanvasRenderer {
     for (let y = 0; y < DISPLAY_HEIGHT; y++) {
       const sourceRowStart = (y + DISPLAY_HEIGHT) * DISPLAY_WIDTH * 4;
       const destRowStart = y * DISPLAY_WIDTH * 4;
-      swappedUnifiedBuffer.copy(display2Buffer, destRowStart, sourceRowStart, sourceRowStart + DISPLAY_WIDTH * 4);
+      processedUnifiedBuffer.copy(display2Buffer, destRowStart, sourceRowStart, sourceRowStart + DISPLAY_WIDTH * 4);
     }
 
     return {
@@ -741,7 +760,7 @@ export class CanvasRenderer {
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
     const brightness = websocketServer.getBrightness();
-    return this.swapRedBlueChannels(rawBuffer, brightness);
+    return this.postProcessFrame(rawBuffer, brightness);
   }
 
   public async renderTestFrameForDisplay(displayId: 'display1' | 'display2'): Promise<Buffer> {
@@ -772,7 +791,7 @@ export class CanvasRenderer {
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
     const brightness = websocketServer.getBrightness();
-    return this.swapRedBlueChannels(rawBuffer, brightness);
+    return this.postProcessFrame(rawBuffer, brightness);
   }
 }
 

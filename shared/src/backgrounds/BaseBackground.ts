@@ -90,15 +90,6 @@ export abstract class BaseBackground implements IBackground {
     }
   }
 
-  /**
-   * Apply brightness to a color if platform supports it
-   */
-  protected applyBrightness(color: string, brightness: number = 100): string {
-    if (this.platformUtils.applyBrightness) {
-      return this.platformUtils.applyBrightness(color, brightness);
-    }
-    return color; // Return original color if brightness not supported
-  }
 
   /**
    * Render particles using platform-specific optimizations
@@ -120,10 +111,8 @@ export abstract class BaseBackground implements IBackground {
     particles.forEach(particle => {
       ctx.save();
 
-      // Apply brightness if available
-      const brightness = options?.brightness ?? 100;
-      ctx.globalAlpha = particle.opacity * (brightness / 100);
-      ctx.fillStyle = this.applyBrightness(particle.color, brightness);
+      ctx.globalAlpha = particle.opacity;
+      ctx.fillStyle = particle.color;
 
       if (renderType === 'circle') {
         ctx.beginPath();
