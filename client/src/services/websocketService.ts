@@ -115,6 +115,15 @@ class WebSocketService {
     }
   }
 
+  sendBrightnessUpdate(brightness: number): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: 'brightness_update',
+        brightness
+      }));
+    }
+  }
+
   disconnect(): void {
     if (this.ws) {
       this.ws.close();

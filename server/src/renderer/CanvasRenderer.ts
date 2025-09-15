@@ -16,6 +16,7 @@ import {
 } from '@mqtt-pixel-streamer/shared';
 import path from 'path';
 import { weatherAnimatedIconManager } from './AnimatedIcon';
+import { websocketServer } from '../websocket/WebSocketServer';
 
 class AnimationManager {
   private animationStates: Map<string, AnimationState> = new Map();
@@ -180,7 +181,8 @@ export class CanvasRenderer {
 
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
-    return this.swapRedBlueChannels(rawBuffer);
+    const brightness = websocketServer.getBrightness();
+    return this.swapRedBlueChannels(rawBuffer, brightness);
   }
 
   private async renderElement(element: Element, dataValues?: Record<string, any>): Promise<void> {
@@ -526,19 +528,25 @@ export class CanvasRenderer {
     };
   }
 
-  private swapRedBlueChannels(buffer: Buffer): Buffer {
+  private swapRedBlueChannels(buffer: Buffer, brightness?: number): Buffer {
     // Create a copy of the buffer to avoid modifying the original
     const swappedBuffer = Buffer.from(buffer);
 
+    // Calculate brightness factor (default to 100% if not provided)
+    const brightnessFactor = brightness ? brightness / 100 : 1.0;
+
     // RGBA format: each pixel is 4 bytes (R, G, B, A)
-    // We need to swap R (index 0) with B (index 2) for each pixel
+    // We need to swap R (index 0) with B (index 2) for each pixel and apply brightness
     for (let i = 0; i < swappedBuffer.length; i += 4) {
       const red = swappedBuffer[i];     // Original red channel
+      const green = swappedBuffer[i + 1]; // Original green channel
       const blue = swappedBuffer[i + 2]; // Original blue channel
 
-      swappedBuffer[i] = blue;      // Put blue in red position
-      swappedBuffer[i + 2] = red;   // Put red in blue position
-      // Green (i + 1) and Alpha (i + 3) remain unchanged
+      // Apply brightness and swap red/blue channels
+      swappedBuffer[i] = Math.round(blue * brightnessFactor);      // Put dimmed blue in red position
+      swappedBuffer[i + 1] = Math.round(green * brightnessFactor); // Apply brightness to green
+      swappedBuffer[i + 2] = Math.round(red * brightnessFactor);   // Put dimmed red in blue position
+      // Alpha (i + 3) remains unchanged
     }
 
     return swappedBuffer;
@@ -592,7 +600,8 @@ export class CanvasRenderer {
 
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
-    return this.swapRedBlueChannels(rawBuffer);
+    const brightness = websocketServer.getBrightness();
+    return this.swapRedBlueChannels(rawBuffer, brightness);
   }
 
   public async renderDualDisplayTemplate(template: Template, dataValues?: Record<string, any>): Promise<{ display1: Buffer; display2: Buffer }> {
@@ -624,7 +633,8 @@ export class CanvasRenderer {
 
     // Extract display portions from the unified canvas
     const unifiedBuffer = this.dualCanvas.toBuffer('raw');
-    const swappedUnifiedBuffer = this.swapRedBlueChannels(unifiedBuffer);
+    const brightness = websocketServer.getBrightness();
+    const swappedUnifiedBuffer = this.swapRedBlueChannels(unifiedBuffer, brightness);
 
     // Extract top half (display1: 0,0,128,32)
     const display1Buffer = Buffer.alloc(FRAME_SIZE);
@@ -675,7 +685,8 @@ export class CanvasRenderer {
 
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
-    return this.swapRedBlueChannels(rawBuffer);
+    const brightness = websocketServer.getBrightness();
+    return this.swapRedBlueChannels(rawBuffer, brightness);
   }
 
   public async renderTestFrameForDisplay(displayId: 'display1' | 'display2'): Promise<Buffer> {
@@ -705,7 +716,8 @@ export class CanvasRenderer {
 
     // Get raw RGBA buffer and swap red/blue channels to fix color display
     const rawBuffer = this.canvas.toBuffer('raw');
-    return this.swapRedBlueChannels(rawBuffer);
+    const brightness = websocketServer.getBrightness();
+    return this.swapRedBlueChannels(rawBuffer, brightness);
   }
 }
 

@@ -12,12 +12,14 @@ interface PreviewCanvasProps {
   template: Template | null;
   isRunning: boolean;
   onTogglePreview: () => void;
+  brightness: number;
 }
 
 const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   template,
   isRunning,
   onTogglePreview,
+  brightness,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvas2Ref = useRef<HTMLCanvasElement>(null);
@@ -28,6 +30,53 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   // Check if template is in dual display mode
   const isDualDisplay = template?.displayMode === 'dual';
+
+  // Helper function to apply brightness to colors
+  const applyBrightness = (color: string): string => {
+    const brightnessFactor = brightness / 100;
+
+    // Handle hex colors
+    if (color.startsWith('#')) {
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+
+      const dimmedR = Math.round(r * brightnessFactor);
+      const dimmedG = Math.round(g * brightnessFactor);
+      const dimmedB = Math.round(b * brightnessFactor);
+
+      return `#${dimmedR.toString(16).padStart(2, '0')}${dimmedG.toString(16).padStart(2, '0')}${dimmedB.toString(16).padStart(2, '0')}`;
+    }
+
+    // Handle rgb/rgba colors
+    if (color.startsWith('rgb')) {
+      const matches = color.match(/\d+/g);
+      if (matches && matches.length >= 3) {
+        const r = Math.round(parseInt(matches[0]) * brightnessFactor);
+        const g = Math.round(parseInt(matches[1]) * brightnessFactor);
+        const b = Math.round(parseInt(matches[2]) * brightnessFactor);
+        const a = matches[3] ? parseInt(matches[3]) : 255;
+
+        return matches.length > 3 ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
+      }
+    }
+
+    // Handle hsl colors
+    if (color.startsWith('hsl')) {
+      const matches = color.match(/\d+/g);
+      if (matches && matches.length >= 3) {
+        const h = matches[0];
+        const s = matches[1];
+        const l = Math.round(parseInt(matches[2]) * brightnessFactor);
+        const a = matches[3] ? parseInt(matches[3]) : 1;
+
+        return matches.length > 3 ? `hsla(${h}, ${s}%, ${l}%, ${a})` : `hsl(${h}, ${s}%, ${l}%)`;
+      }
+    }
+
+    // Return original color if we can't parse it
+    return color;
+  };
 
   useEffect(() => {
     // Subscribe to WebSocket frame updates
@@ -96,6 +145,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       bytes[i] = binaryString.charCodeAt(i);
     }
 
+    // Apply brightness to the frame data
+    const brightnessFactor = brightness / 100;
+    const dimmedBytes = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i += 4) {
+      dimmedBytes[i] = Math.round(bytes[i] * brightnessFactor);     // R
+      dimmedBytes[i + 1] = Math.round(bytes[i + 1] * brightnessFactor); // G
+      dimmedBytes[i + 2] = Math.round(bytes[i + 2] * brightnessFactor); // B
+      dimmedBytes[i + 3] = bytes[i + 3]; // A (keep alpha unchanged)
+    }
+
     const ctx1 = canvas1.getContext('2d');
     if (!ctx1) return;
 
@@ -104,10 +163,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       if (!ctx2) return;
 
       // For dual display, expect a 128x64 frame (32,768 bytes)
-      if (bytes.length === DISPLAY_WIDTH * TOTAL_DISPLAY_HEIGHT * 4) {
+      if (dimmedBytes.length === DISPLAY_WIDTH * TOTAL_DISPLAY_HEIGHT * 4) {
         // Split the frame into two 128x32 sections
-        const display1Bytes = bytes.slice(0, DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
-        const display2Bytes = bytes.slice(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
+        const display1Bytes = dimmedBytes.slice(0, DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
+        const display2Bytes = dimmedBytes.slice(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
         // Create ImageData for display1 (top)
         const imageData1 = new ImageData(
@@ -127,7 +186,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       } else {
         // Fallback: treat as single display frame, show on display1 only
         const imageData = new ImageData(
-          new Uint8ClampedArray(bytes.buffer),
+          new Uint8ClampedArray(dimmedBytes.buffer),
           DISPLAY_WIDTH,
           DISPLAY_HEIGHT
         );
@@ -140,7 +199,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     } else {
       // Single display mode
       const imageData = new ImageData(
-        new Uint8ClampedArray(bytes.buffer),
+        new Uint8ClampedArray(dimmedBytes.buffer),
         DISPLAY_WIDTH,
         DISPLAY_HEIGHT
       );
@@ -157,7 +216,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (!ctx1) return;
 
     // Clear display1
-    ctx1.fillStyle = template.background || '#000000';
+    const backgroundColor = applyBrightness(template.background || '#000000');
+    ctx1.fillStyle = backgroundColor;
     ctx1.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
     let ctx2: CanvasRenderingContext2D | null = null;
@@ -165,7 +225,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       ctx2 = canvas2.getContext('2d');
       if (ctx2) {
         // Clear display2
-        ctx2.fillStyle = template.background || '#000000';
+        ctx2.fillStyle = backgroundColor;
         ctx2.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
       }
     }
@@ -209,7 +269,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     dataValues: Record<string, any>
   ) => {
     const style = element.style || {};
-    ctx.fillStyle = style.color || '#FFFFFF';
+    const baseColor = style.color || '#FFFFFF';
+    ctx.fillStyle = applyBrightness(baseColor);
     ctx.font = `${style.fontSize || 12}px ${style.fontFamily || 'monospace'}`;
 
     switch (element.type) {
@@ -238,11 +299,12 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const size = element.size || { width: 10, height: 10 };
     const style = element.style || {};
 
-    ctx.strokeStyle = style.borderColor || style.color || '#FFFFFF';
+    const strokeColor = style.borderColor || style.color || '#FFFFFF';
+    ctx.strokeStyle = applyBrightness(strokeColor);
     ctx.lineWidth = style.borderWidth || 1;
 
     if (style.backgroundColor) {
-      ctx.fillStyle = style.backgroundColor;
+      ctx.fillStyle = applyBrightness(style.backgroundColor);
     }
 
     switch (element.shape) {

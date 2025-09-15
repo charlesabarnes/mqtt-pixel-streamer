@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Grid, Paper, AppBar, Toolbar, Typography, Button, Alert } from '@mui/material';
+import { Box, Container, Grid, Paper, AppBar, Toolbar, Typography, Button, Alert, Slider, IconButton } from '@mui/material';
+import BrightnessLowIcon from '@mui/icons-material/BrightnessLow';
 import { Template } from '@mqtt-pixel-streamer/shared';
 import Sidebar from './components/Sidebar/Sidebar';
 import PreviewCanvas from './components/Canvas/PreviewCanvas';
@@ -15,6 +16,10 @@ function App() {
   const [isPreviewRunning, setIsPreviewRunning] = useState(false);
   const [mqttStatus, setMqttStatus] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [brightness, setBrightness] = useState<number>(() => {
+    const saved = localStorage.getItem('displayBrightness');
+    return saved ? parseInt(saved, 10) : 100;
+  });
 
   useEffect(() => {
     loadTemplates();
@@ -25,6 +30,10 @@ function App() {
       websocketService.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('displayBrightness', brightness.toString());
+  }, [brightness]);
 
   const loadTemplates = async () => {
     try {
@@ -147,6 +156,14 @@ function App() {
     }
   };
 
+  const handleBrightnessChange = (_: Event, value: number | number[]) => {
+    const newBrightness = Array.isArray(value) ? value[0] : value;
+    setBrightness(newBrightness);
+
+    // Send brightness update to server
+    websocketService.sendBrightnessUpdate(newBrightness);
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <AppBar position="static">
@@ -157,6 +174,33 @@ function App() {
           <Typography variant="body2" sx={{ mr: 2 }}>
             MQTT: {mqttStatus ? '🟢 Connected' : '🔴 Disconnected'}
           </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2, minWidth: 120 }}>
+            <BrightnessLowIcon sx={{ mr: 1, fontSize: 18 }} />
+            <Slider
+              value={brightness}
+              onChange={handleBrightnessChange}
+              min={10}
+              max={100}
+              size="small"
+              sx={{
+                width: 80,
+                mr: 1,
+                '& .MuiSlider-thumb': {
+                  width: 16,
+                  height: 16,
+                },
+                '& .MuiSlider-track': {
+                  height: 3,
+                },
+                '& .MuiSlider-rail': {
+                  height: 3,
+                }
+              }}
+            />
+            <Typography variant="caption" sx={{ minWidth: 30, fontSize: 11 }}>
+              {brightness}%
+            </Typography>
+          </Box>
           <Button color="inherit" onClick={handleSaveTemplate}>
             Save
           </Button>
@@ -192,6 +236,7 @@ function App() {
                   template={currentTemplate}
                   isRunning={isPreviewRunning}
                   onTogglePreview={() => setIsPreviewRunning(!isPreviewRunning)}
+                  brightness={brightness}
                 />
               </Paper>
             </Grid>

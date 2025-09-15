@@ -4,6 +4,7 @@ import { Server } from 'http';
 export class WebSocketServer {
   private wss: WSServer | null = null;
   private clients: Set<WebSocket> = new Set();
+  private brightness: number = 100;
 
   public initialize(server: Server): void {
     this.wss = new WSServer({ server, path: '/ws' });
@@ -57,6 +58,9 @@ export class WebSocketServer {
         // Forward publishing control to other clients
         this.broadcastUpdate('publishing_stopped', { templateId: data.templateId });
         break;
+      case 'brightness_update':
+        this.handleBrightnessUpdate(data.brightness);
+        break;
       default:
         console.log('Unknown message type:', data.type);
     }
@@ -83,6 +87,15 @@ export class WebSocketServer {
     if (updateTemplateInStore) {
       updateTemplateInStore(templateId, templateData);
     }
+  }
+
+  private handleBrightnessUpdate(brightness: number): void {
+    console.log(`Setting display brightness to ${brightness}%`);
+    this.brightness = Math.max(10, Math.min(100, brightness)); // Clamp between 10-100
+  }
+
+  public getBrightness(): number {
+    return this.brightness;
   }
 
   public broadcastFrame(frameData: Buffer): void {
