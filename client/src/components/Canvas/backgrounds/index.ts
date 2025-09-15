@@ -1,0 +1,12 @@
+export type { IClientBackground } from './Background';
+export { BaseClientBackground } from './Background';
+export { SolidBackground } from './SolidBackground';
+export { GradientBackground } from './GradientBackground';
+export { FireworksBackground } from './FireworksBackground';
+export { BubblesBackground } from './BubblesBackground';
+export { SnowBackground } from './SnowBackground';
+export { StarsBackground } from './StarsBackground';
+export { MatrixBackground } from './MatrixBackground';
+export { PipesBackground } from './PipesBackground';
+export { FishTankBackground } from './FishTankBackground';
+export { ClientBackgroundFactory } from './BackgroundFactory';
