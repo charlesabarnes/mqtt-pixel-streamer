@@ -101,6 +101,26 @@ export class WebSocketServer {
     });
   }
 
+  public broadcastDualFrame(display1Data: Buffer, display2Data: Buffer): void {
+    // Combine both display frames into a single dual frame buffer
+    const dualFrameData = Buffer.concat([display1Data, display2Data]);
+
+    // Convert combined frame to base64 for transmission
+    const base64Frame = dualFrameData.toString('base64');
+    const message = JSON.stringify({
+      type: 'frame',
+      data: base64Frame,
+      isDualFrame: true,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
   public broadcastUpdate(updateType: string, data: any): void {
     const message = JSON.stringify({
       type: 'update',

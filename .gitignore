@@ -47,3 +47,5 @@ temp/
 
 # Canvas build artifacts
 build/Release/
+
+*.tsbuildinfo

@@ -14,6 +14,7 @@ let templates: Template[] = [
     background: '#000000',
     updateInterval: 1000,
     enabled: true,
+    displayMode: 'single' as const,
     elements: [
       {
         id: 'time',
@@ -37,6 +38,57 @@ let templates: Template[] = [
         style: {
           color: '#FFFF00',
           fontSize: 10,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 2,
+    name: 'Dual Display Clock',
+    background: '#000000',
+    updateInterval: 1000,
+    enabled: true,
+    displayMode: 'dual' as const,
+    elements: [
+      {
+        id: 'time-top',
+        type: 'data',
+        position: { x: 2, y: 16 },
+        dataSource: 'time',
+        format: 'time',
+        targetDisplay: 'display1',
+        style: {
+          color: '#00FF00',
+          fontSize: 14,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'date-bottom',
+        type: 'data',
+        position: { x: 2, y: 48 }, // y: 32+16 for display2
+        dataSource: 'date',
+        format: 'date',
+        targetDisplay: 'display2',
+        style: {
+          color: '#0000FF',
+          fontSize: 12,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'status-bottom',
+        type: 'text',
+        position: { x: 2, y: 60 }, // y: 32+28 for display2
+        text: 'DISPLAY2',
+        targetDisplay: 'display2',
+        style: {
+          color: '#FFFF00',
+          fontSize: 8,
           fontFamily: 'monospace'
         },
         visible: true
@@ -113,20 +165,56 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
     // Get current data values using shared utility
     const dataValues = DataFormatter.getCurrentDataValues();
 
-    // Render frame
-    const frameData = await canvasRenderer.renderTemplate(template, dataValues);
+    // Handle different display modes
+    if (template.displayMode === 'dual') {
+      // Render both displays
+      const { display1, display2 } = await canvasRenderer.renderDualDisplayTemplate(template, dataValues);
 
-    // Publish to MQTT
-    await mqttPublisher.publishFrame(frameData);
+      // Publish to both MQTT topics
+      await mqttPublisher.publishFrameToBothDisplays(display1, display2);
 
-    // Broadcast to WebSocket clients
-    websocketServer.broadcastFrame(frameData);
+      // Broadcast dual frame to WebSocket clients for preview
+      websocketServer.broadcastDualFrame(display1, display2);
 
-    res.json({
-      success: true,
-      message: 'Frame published successfully',
-      frameSize: frameData.length
-    });
+      res.json({
+        success: true,
+        message: 'Frames published to both displays successfully',
+        frameSize: {
+          display1: display1.length,
+          display2: display2.length
+        }
+      });
+    } else if (template.displayMode === 'display2') {
+      // Render only for display2
+      const frameData = await canvasRenderer.renderTemplateForDisplay(template, 'display2', dataValues);
+
+      // Publish to display2 MQTT topic
+      await mqttPublisher.publishFrame(frameData, 'display2');
+
+      // Broadcast to WebSocket clients
+      websocketServer.broadcastFrame(frameData);
+
+      res.json({
+        success: true,
+        message: 'Frame published to display2 successfully',
+        frameSize: frameData.length
+      });
+    } else {
+      // Default behavior: single display or display1
+      const frameData = await canvasRenderer.renderTemplate(template, dataValues);
+
+      // Publish to display1 MQTT topic
+      await mqttPublisher.publishFrame(frameData, 'display1');
+
+      // Broadcast to WebSocket clients
+      websocketServer.broadcastFrame(frameData);
+
+      res.json({
+        success: true,
+        message: 'Frame published to display1 successfully',
+        frameSize: frameData.length
+      });
+    }
   } catch (error) {
     console.error('Failed to publish frame:', error);
     res.status(500).json({
@@ -159,14 +247,35 @@ router.post('/:id/start-publishing', async (req: Request, res: Response) => {
       const currentTemplate = templates.find(t => t.id === templateId);
       if (!currentTemplate) return;
 
-      // Render frame
-      const frameData = await canvasRenderer.renderTemplate(currentTemplate, dataValues);
+      // Handle different display modes
+      if (currentTemplate.displayMode === 'dual') {
+        // Render both displays
+        const { display1, display2 } = await canvasRenderer.renderDualDisplayTemplate(currentTemplate, dataValues);
 
-      // Publish to MQTT
-      await mqttPublisher.publishFrame(frameData);
+        // Publish to both MQTT topics
+        await mqttPublisher.publishFrameToBothDisplays(display1, display2);
 
-      // Broadcast to WebSocket clients
-      websocketServer.broadcastFrame(frameData);
+        // Broadcast dual frame to WebSocket clients
+        websocketServer.broadcastDualFrame(display1, display2);
+      } else if (currentTemplate.displayMode === 'display2') {
+        // Render only for display2
+        const frameData = await canvasRenderer.renderTemplateForDisplay(currentTemplate, 'display2', dataValues);
+
+        // Publish to display2 MQTT topic
+        await mqttPublisher.publishFrame(frameData, 'display2');
+
+        // Broadcast to WebSocket clients
+        websocketServer.broadcastFrame(frameData);
+      } else {
+        // Default behavior: single display or display1
+        const frameData = await canvasRenderer.renderTemplate(currentTemplate, dataValues);
+
+        // Publish to display1 MQTT topic
+        await mqttPublisher.publishFrame(frameData, 'display1');
+
+        // Broadcast to WebSocket clients
+        websocketServer.broadcastFrame(frameData);
+      }
     } catch (error) {
       console.error('Failed to publish frame in continuous mode:', error);
     }

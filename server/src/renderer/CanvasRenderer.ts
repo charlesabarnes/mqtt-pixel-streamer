@@ -4,7 +4,9 @@ import {
   Element,
   DISPLAY_WIDTH,
   DISPLAY_HEIGHT,
+  TOTAL_DISPLAY_HEIGHT,
   FRAME_SIZE,
+  DUAL_FRAME_SIZE,
   Animation,
   Position,
   DataFormatter
@@ -14,10 +16,16 @@ import path from 'path';
 export class CanvasRenderer {
   private canvas: Canvas;
   private ctx: CanvasRenderingContext2D;
+  private dualCanvas: Canvas;
+  private dualCtx: CanvasRenderingContext2D;
 
   constructor() {
     this.canvas = createCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
     this.ctx = this.canvas.getContext('2d');
+
+    // Canvas for dual display rendering (128x64)
+    this.dualCanvas = createCanvas(DISPLAY_WIDTH, TOTAL_DISPLAY_HEIGHT);
+    this.dualCtx = this.dualCanvas.getContext('2d');
   }
 
   public async renderTemplate(template: Template, dataValues?: Record<string, any>): Promise<Buffer> {
@@ -165,6 +173,60 @@ export class CanvasRenderer {
   }
 
 
+  public async renderTemplateForDisplay(template: Template, displayId: 'display1' | 'display2', dataValues?: Record<string, any>): Promise<Buffer> {
+    // Use single display canvas
+    this.ctx.fillStyle = template.background || '#000000';
+    this.ctx.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+
+    // Filter elements based on position only (seamless based on Y coordinate)
+    const relevantElements = template.elements.filter(element => {
+      if (!element.visible) return false;
+
+      // Check position bounds for the display
+      if (displayId === 'display1') {
+        return element.position.y >= 0 && element.position.y < DISPLAY_HEIGHT;
+      } else {
+        // For display2, elements should be positioned for the second display (y: 32-63)
+        return element.position.y >= DISPLAY_HEIGHT && element.position.y < TOTAL_DISPLAY_HEIGHT;
+      }
+    });
+
+    // Sort elements by z-index if needed
+    const sortedElements = [...relevantElements].sort((a, b) => {
+      const aZ = (a as any).zIndex || 0;
+      const bZ = (b as any).zIndex || 0;
+      return aZ - bZ;
+    });
+
+    // Render each relevant element
+    for (const element of sortedElements) {
+      // Adjust position for display2 elements (shift y position)
+      const adjustedElement = { ...element };
+      if (displayId === 'display2' && element.position.y >= DISPLAY_HEIGHT) {
+        adjustedElement.position = {
+          ...element.position,
+          y: element.position.y - DISPLAY_HEIGHT
+        };
+      }
+
+      await this.renderElement(adjustedElement, dataValues);
+    }
+
+    // Get raw RGBA buffer and swap red/blue channels to fix color display
+    const rawBuffer = this.canvas.toBuffer('raw');
+    return this.swapRedBlueChannels(rawBuffer);
+  }
+
+  public async renderDualDisplayTemplate(template: Template, dataValues?: Record<string, any>): Promise<{ display1: Buffer; display2: Buffer }> {
+    const display1Buffer = await this.renderTemplateForDisplay(template, 'display1', dataValues);
+    const display2Buffer = await this.renderTemplateForDisplay(template, 'display2', dataValues);
+
+    return {
+      display1: display1Buffer,
+      display2: display2Buffer
+    };
+  }
+
   public async renderTestFrame(): Promise<Buffer> {
     // Clear canvas
     this.ctx.fillStyle = '#000000';
@@ -187,6 +249,36 @@ export class CanvasRenderer {
 
     // Draw border
     this.ctx.strokeStyle = '#FF0000';
+    this.ctx.lineWidth = 1;
+    this.ctx.strokeRect(0, 0, DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1);
+
+    // Get raw RGBA buffer and swap red/blue channels to fix color display
+    const rawBuffer = this.canvas.toBuffer('raw');
+    return this.swapRedBlueChannels(rawBuffer);
+  }
+
+  public async renderTestFrameForDisplay(displayId: 'display1' | 'display2'): Promise<Buffer> {
+    // Clear canvas
+    this.ctx.fillStyle = '#000000';
+    this.ctx.fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+
+    // Draw test pattern specific to display
+    this.ctx.fillStyle = displayId === 'display1' ? '#00FF00' : '#0000FF';
+    this.ctx.font = '14px monospace';
+    this.ctx.fillText(displayId.toUpperCase(), 2, 16);
+
+    this.ctx.fillStyle = '#FFFF00';
+    this.ctx.font = '10px monospace';
+    const time = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    this.ctx.fillText(time, 2, 28);
+
+    // Draw border in different colors
+    this.ctx.strokeStyle = displayId === 'display1' ? '#FF0000' : '#FF00FF';
     this.ctx.lineWidth = 1;
     this.ctx.strokeRect(0, 0, DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1);
 

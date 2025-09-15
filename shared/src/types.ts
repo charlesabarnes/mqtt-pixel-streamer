@@ -5,6 +5,7 @@ export interface Template {
   updateInterval: number;
   enabled: boolean;
   elements: Element[];
+  displayMode: 'single' | 'dual' | 'display1' | 'display2';
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -14,6 +15,7 @@ export interface Element {
   type: ElementType;
   position: Position;
   visible: boolean;
+  targetDisplay?: 'display1' | 'display2' | 'both';
   animation?: Animation;
   style?: ElementStyle;
   // Type-specific properties
@@ -77,10 +79,15 @@ export interface MQTTConfig {
   username?: string;
   password?: string;
   topic: string;
+  display1Topic: string;
+  display2Topic: string;
   qos: 0 | 1 | 2;
 }
 
 export const DISPLAY_WIDTH = 128;
 export const DISPLAY_HEIGHT = 32;
+export const DISPLAY_COUNT = 2;
+export const TOTAL_DISPLAY_HEIGHT = DISPLAY_HEIGHT * DISPLAY_COUNT; // 64 for dual display
 export const BYTES_PER_PIXEL = 4; // RGBA8888
 export const FRAME_SIZE = DISPLAY_WIDTH * DISPLAY_HEIGHT * BYTES_PER_PIXEL;
+export const DUAL_FRAME_SIZE = DISPLAY_WIDTH * TOTAL_DISPLAY_HEIGHT * BYTES_PER_PIXEL;

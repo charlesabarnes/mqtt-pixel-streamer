@@ -205,6 +205,7 @@ function App() {
                   onUpdate={(updates) =>
                     selectedElementId && handleElementUpdate(selectedElementId, updates)
                   }
+                  templateDisplayMode={currentTemplate?.displayMode}
                 />
               </Paper>
             </Grid>

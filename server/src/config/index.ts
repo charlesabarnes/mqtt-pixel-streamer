@@ -11,7 +11,9 @@ export const config = {
     broker: process.env.MQTT_BROKER || 'mqtt://192.168.1.147:1883',
     username: process.env.MQTT_USERNAME,
     password: process.env.MQTT_PASSWORD,
-    topic: process.env.MQTT_TOPIC || 'scrollie/frame/raw',
+    topic: process.env.MQTT_TOPIC || 'scrollie/frame/raw/display1',
+    display1Topic: process.env.MQTT_TOPIC || 'scrollie/frame/raw/display1',
+    display2Topic: process.env.MQTT_TOPIC_DISPLAY2 || 'scrollie/frame/raw/display2',
     qos: 0,
   } as MQTTConfig,
 

@@ -39,7 +39,7 @@ export class MQTTPublisher {
     });
   }
 
-  public publishFrame(frameData: Buffer): Promise<void> {
+  public publishFrame(frameData: Buffer, displayId: 'display1' | 'display2' = 'display1'): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.client || !this.connected) {
         reject(new Error('MQTT client not connected'));
@@ -51,21 +51,30 @@ export class MQTTPublisher {
         return;
       }
 
+      const topic = displayId === 'display1' ? config.mqtt.display1Topic : config.mqtt.display2Topic;
+
       this.client.publish(
-        config.mqtt.topic,
+        topic,
         frameData,
         { qos: config.mqtt.qos },
         (error) => {
           if (error) {
-            console.error('Failed to publish frame:', error);
+            console.error(`Failed to publish frame to ${displayId}:`, error);
             reject(error);
           } else {
-            console.log(`Published frame: ${frameData.length} bytes`);
+            console.log(`Published frame to ${displayId}: ${frameData.length} bytes`);
             resolve();
           }
         }
       );
     });
+  }
+
+  public publishFrameToBothDisplays(display1Data: Buffer, display2Data: Buffer): Promise<void[]> {
+    return Promise.all([
+      this.publishFrame(display1Data, 'display1'),
+      this.publishFrame(display2Data, 'display2')
+    ]);
   }
 
   public isConnected(): boolean {

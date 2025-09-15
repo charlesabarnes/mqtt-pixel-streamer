@@ -6,8 +6,12 @@ import {
   Slider,
   Switch,
   FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
-import { Template } from '@mqtt-pixel-streamer/shared';
+import { Template, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT } from '@mqtt-pixel-streamer/shared';
 
 interface TemplateSettingsProps {
   template: Template | null;
@@ -39,6 +43,20 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
         value={template.name}
         onChange={(e) => onUpdate({ name: e.target.value })}
       />
+
+      <FormControl fullWidth margin="normal">
+        <InputLabel>Display Mode</InputLabel>
+        <Select
+          value={template.displayMode || 'single'}
+          label="Display Mode"
+          onChange={(e) => onUpdate({ displayMode: e.target.value as any })}
+        >
+          <MenuItem value="single">Single Display (128×32)</MenuItem>
+          <MenuItem value="dual">Dual Display (128×64)</MenuItem>
+          <MenuItem value="display1">Display 1 Only</MenuItem>
+          <MenuItem value="display2">Display 2 Only</MenuItem>
+        </Select>
+      </FormControl>
 
       <TextField
         fullWidth
@@ -81,15 +99,37 @@ const TemplateSettings: React.FC<TemplateSettingsProps> = ({ template, onUpdate 
       />
 
       <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          Display: 128×32 pixels
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Format: RGBA8888
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Frame Size: 16,384 bytes
-        </Typography>
+        {template.displayMode === 'dual' ? (
+          <>
+            <Typography variant="body2" color="text.secondary">
+              Display: {DISPLAY_WIDTH}×{TOTAL_DISPLAY_HEIGHT} pixels (Dual)
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Display 1: {DISPLAY_WIDTH}×{DISPLAY_HEIGHT} (Y: 0-{DISPLAY_HEIGHT - 1})
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Display 2: {DISPLAY_WIDTH}×{DISPLAY_HEIGHT} (Y: {DISPLAY_HEIGHT}-{TOTAL_DISPLAY_HEIGHT - 1})
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Format: RGBA8888
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Frame Size: 32,768 bytes
+            </Typography>
+          </>
+        ) : (
+          <>
+            <Typography variant="body2" color="text.secondary">
+              Display: {DISPLAY_WIDTH}×{DISPLAY_HEIGHT} pixels
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Format: RGBA8888
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Frame Size: 16,384 bytes
+            </Typography>
+          </>
+        )}
       </Box>
     </Box>
   );

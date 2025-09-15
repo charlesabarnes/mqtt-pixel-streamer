@@ -11,14 +11,15 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
-import { Element, ElementType } from '@mqtt-pixel-streamer/shared';
+import { Element, ElementType, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT } from '@mqtt-pixel-streamer/shared';
 
 interface ElementPropertiesProps {
   element?: Element;
   onUpdate: (updates: Partial<Element>) => void;
+  templateDisplayMode?: string;
 }
 
-const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate }) => {
+const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate, templateDisplayMode }) => {
   if (!element) {
     return (
       <Box>
@@ -48,6 +49,10 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
     });
   };
 
+  // Determine max Y position based on display mode
+  const isDualDisplay = templateDisplayMode === 'dual';
+  const maxYPosition = isDualDisplay ? TOTAL_DISPLAY_HEIGHT - 1 : DISPLAY_HEIGHT - 1;
+
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
@@ -68,6 +73,7 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
         </Select>
       </FormControl>
 
+
       <Box sx={{ mt: 2 }}>
         <Typography gutterBottom>Position</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -77,18 +83,28 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
               value={element.position.x}
               onChange={(_, value) => handlePositionChange('x', value as number)}
               min={0}
-              max={127}
+              max={DISPLAY_WIDTH - 1}
               size="small"
             />
           </Box>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="body2">Y: {element.position.y}</Typography>
+            <Typography variant="body2">
+              Y: {element.position.y}
+              {isDualDisplay && element.position.y >= DISPLAY_HEIGHT && ` (Display 2)`}
+              {isDualDisplay && element.position.y < DISPLAY_HEIGHT && ` (Display 1)`}
+            </Typography>
             <Slider
               value={element.position.y}
               onChange={(_, value) => handlePositionChange('y', value as number)}
               min={0}
-              max={31}
+              max={maxYPosition}
               size="small"
+              marks={isDualDisplay ? [
+                { value: 0, label: '0' },
+                { value: DISPLAY_HEIGHT - 1, label: `${DISPLAY_HEIGHT - 1}` },
+                { value: DISPLAY_HEIGHT, label: `${DISPLAY_HEIGHT}` },
+                { value: maxYPosition, label: `${maxYPosition}` }
+              ] : undefined}
             />
           </Box>
         </Box>
