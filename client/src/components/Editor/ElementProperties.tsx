@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   TextField,
@@ -10,8 +10,10 @@ import {
   Slider,
   Switch,
   FormControlLabel,
+  ListSubheader,
 } from '@mui/material';
 import { Element, ElementType, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT, AnimationType } from '@mqtt-pixel-streamer/shared';
+import { weatherService, WeatherDataField } from '../../services/weatherService';
 
 interface ElementPropertiesProps {
   element?: Element;
@@ -19,7 +21,77 @@ interface ElementPropertiesProps {
   templateDisplayMode?: string;
 }
 
+interface DataSourceOption {
+  key: string;
+  label: string;
+  format?: string;
+  example?: string;
+  integration: 'builtin' | 'weather';
+  source?: string;
+}
+
 const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate, templateDisplayMode }) => {
+  const [weatherDataFields, setWeatherDataFields] = useState<WeatherDataField[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadWeatherDataFields = async () => {
+      try {
+        setLoading(true);
+        const fields = await weatherService.getDataFields();
+        setWeatherDataFields(fields);
+      } catch (error) {
+        console.error('Failed to load weather data fields:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWeatherDataFields();
+  }, []);
+
+  // Get all available data sources organized by integration
+  const getDataSources = (): DataSourceOption[] => {
+    const builtinSources: DataSourceOption[] = [
+      {
+        key: 'time',
+        label: 'Current Time',
+        format: 'time',
+        example: '14:30:45',
+        integration: 'builtin',
+      },
+      {
+        key: 'date',
+        label: 'Current Date',
+        format: 'date',
+        example: 'Dec 15',
+        integration: 'builtin',
+      },
+    ];
+
+    const weatherSources: DataSourceOption[] = weatherDataFields.map(field => ({
+      key: field.key,
+      label: field.label,
+      format: field.format,
+      example: field.example,
+      integration: 'weather' as const,
+      source: 'met.no',
+    }));
+
+    return [...builtinSources, ...weatherSources];
+  };
+
+  const handleDataSourceChange = (dataSource: string) => {
+    const selectedSource = getDataSources().find(source => source.key === dataSource);
+    const updates: Partial<Element> = { dataSource };
+
+    // Auto-populate format if available and not already set
+    if (selectedSource?.format && (!element?.format || element.format === '')) {
+      updates.format = selectedSource.format;
+    }
+
+    onUpdate(updates);
+  };
   if (!element) {
     return (
       <Box>
@@ -148,12 +220,26 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
             <Select
               value={element.dataSource || ''}
               label="Data Source"
-              onChange={(e) => onUpdate({ dataSource: e.target.value })}
+              onChange={(e) => handleDataSourceChange(e.target.value)}
+              disabled={loading}
             >
-              <MenuItem value="time">Current Time</MenuItem>
-              <MenuItem value="date">Current Date</MenuItem>
-              <MenuItem value="weather.temp">Temperature</MenuItem>
-              <MenuItem value="weather.condition">Weather Condition</MenuItem>
+              <ListSubheader>Built-in</ListSubheader>
+              {getDataSources()
+                .filter(source => source.integration === 'builtin')
+                .map(source => (
+                  <MenuItem key={source.key} value={source.key}>
+                    {source.label}
+                  </MenuItem>
+                ))}
+
+              <ListSubheader>Weather • met.no</ListSubheader>
+              {getDataSources()
+                .filter(source => source.integration === 'weather')
+                .map(source => (
+                  <MenuItem key={source.key} value={source.key}>
+                    {source.label} <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>({source.example})</Typography>
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
 
@@ -163,7 +249,14 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
             label="Format"
             value={element.format || ''}
             onChange={(e) => onUpdate({ format: e.target.value })}
-            placeholder="e.g., HH:MM, ##°F"
+            placeholder={(() => {
+              const selectedSource = getDataSources().find(source => source.key === element.dataSource);
+              return selectedSource?.format ? `e.g., ${selectedSource.format}` : "e.g., HH:MM, ##°F";
+            })()}
+            helperText={(() => {
+              const selectedSource = getDataSources().find(source => source.key === element.dataSource);
+              return selectedSource?.example ? `Example output: ${selectedSource.example}` : undefined;
+            })()}
           />
         </>
       )}

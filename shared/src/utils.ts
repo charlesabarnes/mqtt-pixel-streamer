@@ -3,6 +3,23 @@ export interface DataFormatOptions {
   locale?: string;
 }
 
+export interface WeatherData {
+  temperature: number;
+  humidity: number;
+  condition: string;
+  conditionCode: string;
+  windSpeed: number;
+  windDirection: number;
+  pressure: number;
+  cloudCoverage: number;
+  precipitation: number;
+  precipitationProbability: number;
+  uvIndex?: number;
+  sunrise: Date;
+  sunset: Date;
+  lastUpdated: Date;
+}
+
 export class DataFormatter {
   /**
    * Get data value from a data source string, supporting nested object access
@@ -48,6 +65,26 @@ export class DataFormatter {
 
     if (format.includes('°F') && typeof value === 'number') {
       return `${value}°F`;
+    }
+
+    if (format.includes('°C') && typeof value === 'number') {
+      return `${value}°C`;
+    }
+
+    if (format.includes('%') && typeof value === 'number') {
+      return `${value}%`;
+    }
+
+    if (format.includes('mph') && typeof value === 'number') {
+      return `${value} mph`;
+    }
+
+    if (format.includes('hPa') && typeof value === 'number') {
+      return `${value} hPa`;
+    }
+
+    if (format.includes('mm') && typeof value === 'number') {
+      return `${value} mm`;
     }
 
     return String(value);
@@ -113,14 +150,54 @@ export class DataFormatter {
 
   /**
    * Get current data values for template rendering
+   * @deprecated Use DataIntegrationManager.getCurrentDataValues() instead for server-side rendering
    */
-  static getCurrentDataValues(): Record<string, any> {
-    return {
+  static getCurrentDataValues(weatherData?: WeatherData): Record<string, any> {
+    const baseData = {
       time: new Date(),
       date: new Date(),
+    };
+
+    if (weatherData) {
+      return {
+        ...baseData,
+        weather: {
+          temperature: weatherData.temperature,
+          humidity: weatherData.humidity,
+          condition: weatherData.condition,
+          conditionCode: weatherData.conditionCode,
+          windSpeed: weatherData.windSpeed,
+          windDirection: weatherData.windDirection,
+          pressure: weatherData.pressure,
+          cloudCoverage: weatherData.cloudCoverage,
+          precipitation: weatherData.precipitation,
+          precipitationProbability: weatherData.precipitationProbability,
+          uvIndex: weatherData.uvIndex,
+          sunrise: weatherData.sunrise,
+          sunset: weatherData.sunset,
+          lastUpdated: weatherData.lastUpdated,
+        }
+      };
+    }
+
+    // Fallback mock data for development/testing
+    return {
+      ...baseData,
       weather: {
-        temp: 72,
-        condition: 'Sunny'
+        temperature: 72,
+        humidity: 65,
+        condition: 'Partly Cloudy',
+        conditionCode: 'partlycloudy_day',
+        windSpeed: 5,
+        windDirection: 245,
+        pressure: 1013,
+        cloudCoverage: 30,
+        precipitation: 0,
+        precipitationProbability: 20,
+        uvIndex: 3,
+        sunrise: new Date(new Date().setHours(6, 30, 0, 0)),
+        sunset: new Date(new Date().setHours(18, 45, 0, 0)),
+        lastUpdated: new Date(),
       }
     };
   }

@@ -5,11 +5,13 @@ import { config } from './config';
 import { websocketServer } from './websocket/WebSocketServer';
 import { mqttPublisher } from './mqtt/MQTTClient';
 import { canvasRenderer } from './renderer/CanvasRenderer';
+import { dataIntegrationManager } from './services/DataIntegrationManager';
 
 // Import routes
 import templatesRouter from './api/routes/templates';
 import previewRouter from './api/routes/preview';
 import statusRouter from './api/routes/status';
+import weatherRouter from './api/routes/weather';
 
 const app = express();
 const server = http.createServer(app);
@@ -23,9 +25,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/templates', templatesRouter);
 app.use('/api/preview', previewRouter);
 app.use('/api/status', statusRouter);
+app.use('/api/weather', weatherRouter);
 
 // Initialize WebSocket server
 websocketServer.initialize(server);
+
+// Initialize data integrations
+const defaultWeatherLocation = {
+  latitude: 40.7128,
+  longitude: -74.0060,
+  name: 'Default Location',
+};
+
+// Start weather integration with 15-minute updates
+dataIntegrationManager.startWeatherIntegration(defaultWeatherLocation, 900000);
 
 // Test endpoint
 app.get('/api/test', async (req, res) => {
@@ -68,12 +81,15 @@ server.listen(config.port, () => {
    - GET  /api/templates
    - POST /api/templates/:id/publish
    - GET  /api/preview/test
+   - GET  /api/weather/current
+   - GET  /api/weather/locations
   `);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  dataIntegrationManager.shutdown();
   mqttPublisher.disconnect();
   server.close(() => {
     console.log('Server closed');

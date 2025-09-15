@@ -3,8 +3,14 @@ import { Template, DataFormatter } from '@mqtt-pixel-streamer/shared';
 import { canvasRenderer } from '../../renderer/CanvasRenderer';
 import { mqttPublisher } from '../../mqtt/MQTTClient';
 import { websocketServer } from '../../websocket/WebSocketServer';
+import { dataIntegrationManager } from '../../services/DataIntegrationManager';
 
 const router = Router();
+
+// Helper function to get current data values from integration manager
+function getCurrentDataValues(): Record<string, any> {
+  return dataIntegrationManager.getCurrentDataValues();
+}
 
 // In-memory storage for now (will be replaced with SQLite)
 let templates: Template[] = [
@@ -164,6 +170,68 @@ let templates: Template[] = [
         visible: true
       }
     ]
+  },
+  {
+    id: 5,
+    name: 'Weather Display',
+    background: '#000000',
+    updateInterval: 1000, // 1 second (weather data updates independently)
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'weather-temp',
+        type: 'data',
+        position: { x: 2, y: 16 },
+        dataSource: 'weather.temperature',
+        format: '##°F',
+        style: {
+          color: '#FF6600',
+          fontSize: 14,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'weather-condition',
+        type: 'data',
+        position: { x: 2, y: 28 },
+        dataSource: 'weather.condition',
+        format: 'text',
+        style: {
+          color: '#00FFFF',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'weather-humidity',
+        type: 'data',
+        position: { x: 70, y: 16 },
+        dataSource: 'weather.humidity',
+        format: '##%',
+        style: {
+          color: '#0099FF',
+          fontSize: 10,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      },
+      {
+        id: 'weather-wind',
+        type: 'data',
+        position: { x: 70, y: 28 },
+        dataSource: 'weather.windSpeed',
+        format: '## mph',
+        style: {
+          color: '#99FF99',
+          fontSize: 8,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
   }
 ];
 
@@ -232,8 +300,8 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
   }
 
   try {
-    // Get current data values using shared utility
-    const dataValues = DataFormatter.getCurrentDataValues();
+    // Get current data values from integration manager
+    const dataValues = getCurrentDataValues();
 
     // Handle different display modes
     if (template.displayMode === 'dual') {
@@ -313,8 +381,8 @@ router.post('/:id/start-publishing', async (req: Request, res: Response) => {
 
   const publishFrame = async () => {
     try {
-      // Get current data values using shared utility
-      const dataValues = DataFormatter.getCurrentDataValues();
+      // Get current data values from integration manager
+      const dataValues = getCurrentDataValues();
 
       // Get fresh template data in case it was updated
       const currentTemplate = templates.find(t => t.id === templateId);
