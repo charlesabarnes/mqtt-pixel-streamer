@@ -11,7 +11,7 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
-import { Element, ElementType, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT } from '@mqtt-pixel-streamer/shared';
+import { Element, ElementType, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT, AnimationType } from '@mqtt-pixel-streamer/shared';
 
 interface ElementPropertiesProps {
   element?: Element;
@@ -45,6 +45,27 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
       style: {
         ...element.style,
         [property]: value,
+      },
+    });
+  };
+
+  const handleAnimationUpdate = (property: string, value: any) => {
+    onUpdate({
+      animation: {
+        ...element.animation,
+        [property]: value,
+      },
+    });
+  };
+
+  const handleEffectConfigUpdate = (effectType: string, property: string, value: any) => {
+    onUpdate({
+      effectConfig: {
+        ...element.effectConfig,
+        [effectType]: {
+          ...element.effectConfig?.[effectType as keyof typeof element.effectConfig],
+          [property]: value,
+        },
       },
     });
   };
@@ -201,6 +222,113 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({ element, onUpdate
         label="Visible"
         sx={{ mt: 2 }}
       />
+
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Animation
+        </Typography>
+
+        <FormControl fullWidth margin="normal">
+          <InputLabel>Animation Type</InputLabel>
+          <Select
+            value={element.animation?.type || 'none'}
+            label="Animation Type"
+            onChange={(e) => handleAnimationUpdate('type', e.target.value as AnimationType)}
+          >
+            <MenuItem value="none">None</MenuItem>
+            <MenuItem value="bounce">Bounce</MenuItem>
+            <MenuItem value="slide">Slide</MenuItem>
+            <MenuItem value="dvd-logo">DVD Logo Bouncer</MenuItem>
+            <MenuItem value="rainbow">Rainbow Text</MenuItem>
+          </Select>
+        </FormControl>
+
+        {element.animation?.type && element.animation.type !== 'none' && (
+          <>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                Speed: {element.animation.speed || 1}
+              </Typography>
+              <Slider
+                value={element.animation.speed || 1}
+                onChange={(_, value) => handleAnimationUpdate('speed', value)}
+                min={0.1}
+                max={5}
+                step={0.1}
+                size="small"
+              />
+            </Box>
+
+            {(element.animation.type === 'bounce') && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                  Amplitude: {element.animation.amplitude || 10}
+                </Typography>
+                <Slider
+                  value={element.animation.amplitude || 10}
+                  onChange={(_, value) => handleAnimationUpdate('amplitude', value)}
+                  min={1}
+                  max={20}
+                  step={1}
+                  size="small"
+                />
+              </Box>
+            )}
+
+            {element.animation.type === 'dvd-logo' && (
+              <Box sx={{ mt: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={element.effectConfig?.dvdLogo?.bounceColorChange || false}
+                      onChange={(e) => handleEffectConfigUpdate('dvdLogo', 'bounceColorChange', e.target.checked)}
+                    />
+                  }
+                  label="Change Color on Bounce"
+                />
+              </Box>
+            )}
+
+            {element.animation.type === 'rainbow' && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                  Saturation: {element.effectConfig?.rainbow?.saturation || 100}%
+                </Typography>
+                <Slider
+                  value={element.effectConfig?.rainbow?.saturation || 100}
+                  onChange={(_, value) => handleEffectConfigUpdate('rainbow', 'saturation', value)}
+                  min={0}
+                  max={100}
+                  step={1}
+                  size="small"
+                />
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Brightness: {element.effectConfig?.rainbow?.brightness || 50}%
+                </Typography>
+                <Slider
+                  value={element.effectConfig?.rainbow?.brightness || 50}
+                  onChange={(_, value) => handleEffectConfigUpdate('rainbow', 'brightness', value)}
+                  min={10}
+                  max={90}
+                  step={1}
+                  size="small"
+                />
+              </Box>
+            )}
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={element.animation.repeat !== false}
+                  onChange={(e) => handleAnimationUpdate('repeat', e.target.checked)}
+                />
+              }
+              label="Repeat"
+              sx={{ mt: 1 }}
+            />
+          </>
+        )}
+      </Box>
     </Box>
   );
 };

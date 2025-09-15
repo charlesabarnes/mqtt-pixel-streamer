@@ -25,11 +25,15 @@ export interface Element {
   src?: string;
   size?: Size;
   shape?: ShapeType;
+  // Effect-specific properties
+  effectType?: EffectType;
+  effectConfig?: EffectConfig;
 }
 
-export type ElementType = 'text' | 'icon' | 'shape' | 'data';
+export type ElementType = 'text' | 'icon' | 'shape' | 'data' | 'effect';
 export type ShapeType = 'rectangle' | 'circle' | 'line';
-export type AnimationType = 'none' | 'slide' | 'fade' | 'blink' | 'scroll' | 'bounce';
+export type AnimationType = 'none' | 'slide' | 'fade' | 'blink' | 'scroll' | 'bounce' | 'dvd-logo' | 'fireworks' | 'rainbow';
+export type EffectType = 'dvd-logo' | 'fireworks' | 'rainbow' | 'matrix' | 'snow';
 
 export interface Position {
   x: number;
@@ -56,6 +60,55 @@ export interface Animation {
   delay?: number;
   repeat?: boolean;
   direction?: 'normal' | 'reverse' | 'alternate';
+  speed?: number;
+  amplitude?: number;
+}
+
+export interface AnimationState {
+  elementId: string;
+  startTime: number;
+  currentTime: number;
+  velocity: { x: number; y: number };
+  phase: number;
+  bounceCount: number;
+  particles?: Particle[];
+  lastPosition?: Position;
+}
+
+export interface Particle {
+  id: string;
+  position: Position;
+  velocity: { x: number; y: number };
+  color: string;
+  life: number;
+  maxLife: number;
+  size: number;
+}
+
+export interface EffectConfig {
+  // DVD Logo specific
+  dvdLogo?: {
+    text: string;
+    speed: number;
+    colors: string[];
+    bounceColorChange: boolean;
+  };
+  // Fireworks specific
+  fireworks?: {
+    particleCount: number;
+    explosionSize: number;
+    colors: string[];
+    gravity: number;
+    spawnRate: number;
+  };
+  // Rainbow specific
+  rainbow?: {
+    speed: number;
+    hueRange: [number, number];
+    saturation: number;
+    brightness: number;
+    mode: 'background' | 'text' | 'border';
+  };
 }
 
 export interface Frame {

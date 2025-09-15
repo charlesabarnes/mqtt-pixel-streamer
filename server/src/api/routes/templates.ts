@@ -94,6 +94,76 @@ let templates: Template[] = [
         visible: true
       }
     ]
+  },
+  {
+    id: 3,
+    name: 'DVD Logo Bouncer',
+    background: '#000000',
+    updateInterval: 50, // 20 FPS for smooth animation
+    enabled: true,
+    displayMode: 'dual' as const,
+    elements: [
+      {
+        id: 'dvd-logo',
+        type: 'text',
+        position: { x: 30, y: 32 },
+        text: 'DVD',
+        animation: {
+          type: 'dvd-logo',
+          speed: 2,
+          repeat: true
+        },
+        effectConfig: {
+          dvdLogo: {
+            text: 'DVD',
+            speed: 2,
+            colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'],
+            bounceColorChange: true
+          }
+        },
+        style: {
+          color: '#FFFFFF',
+          fontSize: 16,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
+  },
+  {
+    id: 4,
+    name: 'Rainbow Text Demo',
+    background: '#000000',
+    updateInterval: 100,
+    enabled: true,
+    displayMode: 'single' as const,
+    elements: [
+      {
+        id: 'rainbow-text',
+        type: 'text',
+        position: { x: 10, y: 16 },
+        text: 'RAINBOW!',
+        animation: {
+          type: 'rainbow',
+          speed: 1,
+          repeat: true
+        },
+        effectConfig: {
+          rainbow: {
+            speed: 1,
+            hueRange: [0, 360],
+            saturation: 100,
+            brightness: 50,
+            mode: 'text'
+          }
+        },
+        style: {
+          fontSize: 14,
+          fontFamily: 'monospace'
+        },
+        visible: true
+      }
+    ]
   }
 ];
 
@@ -237,6 +307,9 @@ router.post('/:id/start-publishing', async (req: Request, res: Response) => {
   if (activePublishers.has(templateId)) {
     clearInterval(activePublishers.get(templateId)!);
   }
+
+  // Clear animation states to reset animation for the new session
+  canvasRenderer.clearAnimationStates();
 
   const publishFrame = async () => {
     try {

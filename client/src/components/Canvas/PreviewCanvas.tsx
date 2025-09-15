@@ -4,7 +4,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import RadioIcon from '@mui/icons-material/Radio';
-import { Template, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT, DataFormatter } from '@mqtt-pixel-streamer/shared';
+import { Template, DISPLAY_WIDTH, DISPLAY_HEIGHT, TOTAL_DISPLAY_HEIGHT, DataFormatter, AnimationState } from '@mqtt-pixel-streamer/shared';
 import { websocketService } from '../../services/websocketService';
 import { templateService } from '../../services/templateService';
 
