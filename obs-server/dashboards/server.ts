@@ -22,6 +22,10 @@ app.get('/dashboard/weather-time', (req, res) => {
   res.sendFile(path.join(__dirname, 'pages', 'weather-time.html'));
 });
 
+app.get('/dashboard/sports-scores', (req, res) => {
+  res.sendFile(path.join(__dirname, 'pages', 'sports-scores.html'));
+});
+
 // Weather API endpoint
 app.get('/api/weather', async (req, res) => {
   try {
@@ -35,6 +39,23 @@ app.get('/api/weather', async (req, res) => {
       temperature: 0,
       condition: 'unknown',
       description: 'ERROR'
+    });
+  }
+});
+
+// Sports API endpoint
+app.get('/api/sports/events', async (req, res) => {
+  try {
+    const sportsData = await getSportsData();
+    res.json(sportsData);
+  } catch (error) {
+    console.error('Sports API error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch sports data',
+      nfl: [],
+      nba: [],
+      nhl: [],
+      mlb: []
     });
   }
 });
@@ -58,6 +79,11 @@ app.get('/', (req, res) => {
         name: 'Weather & Time',
         url: `/dashboard/weather-time`,
         description: 'Weather info (top) and current time (bottom)'
+      },
+      {
+        name: 'Sports Scores',
+        url: `/dashboard/sports-scores`,
+        description: 'Live sports scores cycling through active games'
       }
     ],
     display: {
@@ -121,6 +147,63 @@ async function fetchRealWeatherData() {
     description: data.weather[0].description.toUpperCase(),
     humidity: data.main.humidity,
     windSpeed: data.wind.speed
+  };
+}
+
+// Sports data fetching function
+async function getSportsData() {
+  const apiKey = process.env.SPORTS_API_KEY;
+
+  if (!apiKey) {
+    console.warn('Sports API key not configured, using mock data');
+    return getMockSportsData();
+  }
+
+  try {
+    const url = 'https://www.thesportsdb.com/api/v2/json/livescore/all';
+
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'X-API-KEY': apiKey
+      }
+    });
+
+    if (response.ok) {
+      const data: any = await response.json();
+      return {
+        livescores: data.livescore || []
+      };
+    } else {
+      console.warn(`Failed to fetch live scores: ${response.status}`);
+      return getMockSportsData();
+    }
+  } catch (error) {
+    console.error('Error fetching live scores:', error instanceof Error ? error.message : String(error));
+    return getMockSportsData();
+  }
+}
+
+// Mock sports data for testing
+function getMockSportsData() {
+  return {
+    livescores: [
+      {
+        idLiveScore: '279129130',
+        idEvent: '2261210',
+        strSport: 'American Football',
+        idLeague: '4391',
+        strLeague: 'NFL',
+        strHomeTeam: 'Dallas Cowboys',
+        strAwayTeam: 'New York Giants',
+        intHomeScore: '21',
+        intAwayScore: '14',
+        strProgress: 'Q3 12:45',
+        strEventTime: '20:30',
+        dateEvent: new Date().toISOString().split('T')[0],
+        updated: new Date().toISOString().replace('T', ' ').replace('Z', '')
+      }
+    ]
   };
 }
 
