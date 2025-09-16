@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 128px;
+            height: 32px;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 8px;
+            overflow: hidden;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+
+        .container {
+            padding: 2px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            line-height: 1.2;
+        }
+
+        .label {
+            color: #ff0;
+        }
+
+        .value {
+            color: #0ff;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="stat">
+            <span class="label">CPU:</span>
+            <span class="value" id="cpu">0%</span>
+        </div>
+        <div class="stat">
+            <span class="label">MEM:</span>
+            <span class="value" id="mem">0%</span>
+        </div>
+        <div class="stat">
+            <span class="label">TIME:</span>
+            <span class="value" id="time">00:00</span>
+        </div>
+    </div>
+
+    <script>
+        // Simulated system stats (replace with actual data source)
+        function updateStats() {
+            // CPU (simulated)
+            const cpu = Math.floor(Math.random() * 100);
+            document.getElementById('cpu').textContent = cpu + '%';
+            document.getElementById('cpu').style.color = cpu > 80 ? '#f00' : '#0ff';
+
+            // Memory (simulated)
+            const mem = Math.floor(Math.random() * 100);
+            document.getElementById('mem').textContent = mem + '%';
+            document.getElementById('mem').style.color = mem > 80 ? '#f00' : '#0ff';
+
+            // Time
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            document.getElementById('time').textContent = time;
+        }
+
+        // Update every second
+        updateStats();
+        setInterval(updateStats, 1000);
+    </script>
+</body>
+</html>

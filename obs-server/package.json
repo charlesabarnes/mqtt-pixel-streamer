@@ -1,0 +1,29 @@
+{
+  "name": "obs-pixel-streamer",
+  "version": "2.0.0",
+  "description": "Simple OBS to MQTT pixel streamer for LED matrix",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dashboards": "ts-node dashboards/server.ts",
+    "dashboards:dev": "nodemon --exec ts-node dashboards/server.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "mqtt": "^5.3.5",
+    "node-media-server": "^2.6.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/fluent-ffmpeg": "^2.1.24",
+    "@types/node": "^20.10.5",
+    "@types/node-media-server": "^2.3.7",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

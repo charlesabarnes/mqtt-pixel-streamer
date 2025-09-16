@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 128px;
+            height: 32px;
+            background: linear-gradient(180deg, #001, #003);
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            font-size: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            padding: 2px;
+        }
+
+        .weather-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        .info {
+            flex: 1;
+            margin: 0 4px;
+            text-align: center;
+        }
+
+        .temp {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ff0;
+        }
+
+        .condition {
+            font-size: 8px;
+            color: #0ff;
+            margin-top: 2px;
+        }
+
+        .details {
+            text-align: right;
+            font-size: 8px;
+        }
+
+        .details div {
+            color: #0f0;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-2px); }
+        }
+
+        .icon {
+            animation: float 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-container">
+        <div class="icon" id="weather-icon">☀️</div>
+        <div class="info">
+            <div class="temp" id="temperature">72°F</div>
+            <div class="condition" id="condition">Sunny</div>
+        </div>
+        <div class="details">
+            <div id="humidity">H: 45%</div>
+            <div id="wind">W: 5mph</div>
+        </div>
+    </div>
+
+    <script>
+        // Weather icons mapping
+        const weatherIcons = {
+            'clear': '☀️',
+            'cloudy': '☁️',
+            'rain': '🌧️',
+            'snow': '❄️',
+            'thunder': '⛈️',
+            'fog': '🌫️',
+            'night': '🌙'
+        };
+
+        // Simulated weather updates (replace with actual API)
+        function updateWeather() {
+            const conditions = ['clear', 'cloudy', 'rain'];
+            const randomCondition = conditions[Math.floor(Math.random() * conditions.length)];
+
+            // Update icon
+            document.getElementById('weather-icon').textContent = weatherIcons[randomCondition] || '☀️';
+
+            // Update temperature
+            const temp = Math.floor(Math.random() * 30) + 60;
+            document.getElementById('temperature').textContent = temp + '°F';
+
+            // Update condition
+            document.getElementById('condition').textContent = randomCondition.charAt(0).toUpperCase() + randomCondition.slice(1);
+
+            // Update details
+            document.getElementById('humidity').textContent = 'H: ' + Math.floor(Math.random() * 60 + 20) + '%';
+            document.getElementById('wind').textContent = 'W: ' + Math.floor(Math.random() * 20) + 'mph';
+        }
+
+        // Initial update
+        updateWeather();
+
+        // Update every 5 minutes (in production)
+        setInterval(updateWeather, 300000);
+
+        // For demo, update every 10 seconds
+        setInterval(updateWeather, 10000);
+    </script>
+</body>
+</html>

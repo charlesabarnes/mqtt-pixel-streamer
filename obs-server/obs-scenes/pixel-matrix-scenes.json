@@ -1,0 +1,201 @@
+{
+  "name": "Pixel Matrix 128x32",
+  "scenes": [
+    {
+      "name": "Clock",
+      "sources": [
+        {
+          "name": "Background",
+          "type": "color_source",
+          "settings": {
+            "color": 4278190080,
+            "width": 128,
+            "height": 32
+          }
+        },
+        {
+          "name": "Time",
+          "type": "text_gdiplus",
+          "settings": {
+            "text": "%H:%M:%S",
+            "font": {
+              "face": "Consolas",
+              "size": 14,
+              "style": "Regular"
+            },
+            "color": 4294967295,
+            "align": "center",
+            "valign": "center",
+            "transform": {
+              "x": 64,
+              "y": 10
+            }
+          }
+        },
+        {
+          "name": "Date",
+          "type": "text_gdiplus",
+          "settings": {
+            "text": "%m/%d/%Y",
+            "font": {
+              "face": "Consolas",
+              "size": 10,
+              "style": "Regular"
+            },
+            "color": 4294967040,
+            "align": "center",
+            "valign": "center",
+            "transform": {
+              "x": 64,
+              "y": 22
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scrolling Text",
+      "sources": [
+        {
+          "name": "Background",
+          "type": "color_source",
+          "settings": {
+            "color": 4278190335,
+            "width": 128,
+            "height": 32
+          }
+        },
+        {
+          "name": "Scrolling Message",
+          "type": "text_gdiplus",
+          "settings": {
+            "text": "Welcome to OBS Pixel Streamer! Create amazing LED animations with OBS Studio.",
+            "font": {
+              "face": "Arial",
+              "size": 12,
+              "style": "Bold"
+            },
+            "color": 4278255615,
+            "filters": [
+              {
+                "name": "Scroll",
+                "type": "scroll_filter",
+                "settings": {
+                  "speed_x": -50,
+                  "speed_y": 0,
+                  "loop": true
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rainbow Gradient",
+      "sources": [
+        {
+          "name": "Gradient",
+          "type": "gradient_source",
+          "settings": {
+            "width": 128,
+            "height": 32,
+            "gradient_type": "linear",
+            "gradient_direction": 0,
+            "color_1": 4294901760,
+            "color_2": 4278255360,
+            "filters": [
+              {
+                "name": "Color Cycle",
+                "type": "color_key_filter",
+                "settings": {
+                  "hue_shift": 360,
+                  "hue_shift_speed": 0.5
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "System Stats",
+      "sources": [
+        {
+          "name": "Background",
+          "type": "color_source",
+          "settings": {
+            "color": 4278190080,
+            "width": 128,
+            "height": 32
+          }
+        },
+        {
+          "name": "Stats Browser",
+          "type": "browser_source",
+          "settings": {
+            "url": "file:///obs-server/obs-scenes/widgets/system-stats.html",
+            "width": 128,
+            "height": 32,
+            "fps": 30
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audio Visualizer",
+      "sources": [
+        {
+          "name": "Background",
+          "type": "color_source",
+          "settings": {
+            "color": 4278190080,
+            "width": 128,
+            "height": 32
+          }
+        },
+        {
+          "name": "Audio Bars",
+          "type": "audio_visualizer",
+          "plugin": "spectralizer",
+          "settings": {
+            "bar_width": 4,
+            "bar_spacing": 1,
+            "bar_height": 32,
+            "color": 4278255615,
+            "audio_source": "Desktop Audio"
+          }
+        }
+      ]
+    }
+  ],
+  "scene_order": [
+    "Clock",
+    "Scrolling Text",
+    "Rainbow Gradient",
+    "System Stats",
+    "Audio Visualizer"
+  ],
+  "transitions": [
+    {
+      "name": "Fade",
+      "duration": 300
+    },
+    {
+      "name": "Cut",
+      "duration": 0
+    },
+    {
+      "name": "Slide",
+      "duration": 200
+    }
+  ],
+  "canvas_settings": {
+    "base_width": 128,
+    "base_height": 32,
+    "output_width": 128,
+    "output_height": 32,
+    "fps_num": 30,
+    "fps_den": 1
+  }
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=128, height=64, initial-scale=1.0, user-scalable=no">
+    <title>Weather & Time - LED Dashboard</title>
+    <link rel="stylesheet" href="../public/css/led-display.css">
+    <style>
+        /* Page-specific styles for weather-time dashboard */
+        body {
+            background: #000000;
+        }
+
+        /* Ensure exact 128x64 viewport */
+        html, body {
+            width: 128px;
+            height: 64px;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Weather Section (Top 32px) - Just temperature -->
+    <div class="weather-section">
+        <div class="weather-temp">72°</div>
+    </div>
+
+    <!-- Time Section (Bottom 32px) - Just time -->
+    <div class="time-section">
+        <div class="time-display">12:34</div>
+    </div>
+
+    <script src="../public/js/dashboard.js"></script>
+    <script>
+        // Page-specific initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            // Override dashboard behavior if needed for this specific page
+            console.log('Weather & Time Dashboard loaded');
+
+            // Add any page-specific event listeners or customizations here
+
+            // Example: Different update intervals for this page
+            if (window.dashboard) {
+                // You can customize the dashboard behavior here
+                console.log('Dashboard initialized for weather-time page');
+            }
+        });
+
+        // Handle visibility changes (pause updates when hidden)
+        document.addEventListener('visibilitychange', function() {
+            if (window.dashboard) {
+                if (document.hidden) {
+                    console.log('Dashboard hidden - pausing updates');
+                    // Could pause updates here if needed
+                } else {
+                    console.log('Dashboard visible - resuming updates');
+                    // Force immediate update when coming back
+                    window.dashboard.updateTime();
+                    window.dashboard.updateWeather();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+/* LED Display Optimized CSS - 128x64 pixels */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 128px;
+  height: 64px;
+  background-color: #000000;
+  color: #ffffff;
+  font-family: 'Courier New', 'Monaco', 'Lucida Console', monospace;
+  font-weight: 900;
+  overflow: hidden;
+  position: relative;
+
+  /* Critical for LED displays - disable ALL smoothing */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+
+  /* Prevent any scrolling or selection */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Top half - Weather section (128x32) */
+.weather-section {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 128px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.weather-temp {
+  font-size: 24px;
+  font-weight: 900;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1;
+  text-shadow: none;
+  letter-spacing: 0;
+}
+
+.weather-icon {
+  display: none; /* Too small for LED, just show temp */
+}
+
+.weather-desc {
+  display: none; /* Too small for LED */
+}
+
+/* Bottom half - Time section (128x32) */
+.time-section {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  width: 128px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.time-display {
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1;
+  letter-spacing: 1px;
+  text-align: center;
+  text-shadow: none;
+}
+
+.date-display {
+  display: none; /* Too small for LED */
+}
+
+/* Weather icons using simple symbols */
+.weather-clear::before { content: "☀"; color: #ffff00; }
+.weather-clouds::before { content: "☁"; color: #cccccc; }
+.weather-rain::before { content: "🌧"; color: #0099ff; }
+.weather-snow::before { content: "❄"; color: #ffffff; }
+.weather-thunderstorm::before { content: "⚡"; color: #ffaa00; }
+.weather-drizzle::before { content: "🌦"; color: #6699ff; }
+.weather-mist::before { content: "🌫"; color: #999999; }
+
+/* Utility classes */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+/* Blinking cursor for time */
+.blink {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Error states */
+.error {
+  color: #ff0000;
+  font-size: 8px;
+}
+
+/* Loading state */
+.loading {
+  color: #ffff00;
+  font-size: 8px;
+}
+
+/* High contrast mode for better LED visibility */
+@media (prefers-contrast: high) {
+  body {
+    background-color: #000000;
+    color: #ffffff;
+  }
+
+  .weather-temp {
+    color: #ffffff;
+  }
+
+  .time-display {
+    color: #ffffff;
+  }
+}
