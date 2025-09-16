@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=128, height=64, initial-scale=1.0, user-scalable=no">
+    <title>Stock Ticker - LED Dashboard</title>
+    <link rel="stylesheet" href="../public/css/led-display.css">
+    <style>
+        /* Force pixel-perfect rendering for LED display */
+        * {
+            -webkit-font-smoothing: none !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            font-smooth: never !important;
+            text-rendering: optimizeSpeed !important;
+            font-variant-ligatures: none !important;
+        }
+
+        body {
+            -webkit-font-smoothing: none !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            font-smooth: never !important;
+            text-rendering: optimizeSpeed !important;
+            background: #000000;
+        }
+
+        /* Stock ticker container - full display height */
+        .ticker-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 128px;
+            height: 64px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            background: #000000;
+        }
+
+        /* Scrolling ticker content */
+        .ticker-content {
+            position: absolute;
+            top: 0;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            font-size: 32px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: 1px;
+
+            /* Critical: Disable ALL font smoothing for crisp LED display */
+            -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: grayscale;
+            font-smooth: never;
+            text-rendering: optimizeSpeed;
+            font-variant-ligatures: none;
+            font-feature-settings: "liga" 0;
+
+            /* Ensure pixel-perfect rendering */
+            transform: translateZ(0);
+            backface-visibility: hidden;
+
+            /* Animation will be controlled by JavaScript */
+            animation: none;
+        }
+
+        /* Stock item styling */
+        .stock-item {
+            margin-right: 40px;
+            display: inline-flex;
+            align-items: center;
+            font-size: 32px;
+            font-weight: 900;
+        }
+
+        .stock-symbol {
+            color: #ffffff;
+            margin-right: 8px;
+        }
+
+        .stock-price {
+            margin-right: 8px;
+        }
+
+        .stock-change {
+            font-size: 28px;
+        }
+
+        /* Color classes for price changes */
+        .price-up {
+            color: #00ff00;
+        }
+
+        .price-down {
+            color: #ff0000;
+        }
+
+        .price-neutral {
+            color: #ffff00;
+        }
+
+        /* Ensure exact 128x64 viewport */
+        html, body {
+            width: 128px;
+            height: 64px;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Stock Ticker Container (Full 128x64) -->
+    <div class="ticker-container">
+        <div class="ticker-content" id="ticker-content">
+            <!-- Stock items will be populated by JavaScript -->
+            <div class="stock-item">
+                <span class="stock-symbol">LOADING</span>
+                <span class="stock-price price-neutral">...</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="../public/js/stocks.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Stock Ticker Dashboard loaded');
+
+            if (window.stockTicker) {
+                window.stockTicker.init();
+            }
+        });
+
+        // Handle visibility changes (pause when hidden)
+        document.addEventListener('visibilitychange', function() {
+            if (window.stockTicker) {
+                if (document.hidden) {
+                    console.log('Stock ticker dashboard hidden - pausing animation');
+                    window.stockTicker.pause();
+                } else {
+                    console.log('Stock ticker dashboard visible - resuming animation');
+                    window.stockTicker.resume();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

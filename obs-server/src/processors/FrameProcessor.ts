@@ -40,7 +40,7 @@ export class FrameProcessor {
         '-f', 'rawvideo',
         '-pix_fmt', 'rgba',
         '-s', `${config.display.width}x${config.display.height}`,
-        '-r', '30', // Target 30 fps
+        '-r', '75', // Target 75 fps
       ])
       .on('start', (commandLine) => {
         console.log('🚀 FFmpeg started:', commandLine);
@@ -90,7 +90,7 @@ export class FrameProcessor {
     const processedFrame = this.applyBrightness(frame, config.display.brightness);
 
     // Swap red and blue channels (RGBA to BGRA) if needed for LED matrix
-    const finalFrame = this.swapRedBlueChannels(processedFrame);
+    const finalFrame = processedFrame;
 
     // Publish frame based on display mode
     if (config.display.mode === 'dual') {
@@ -105,14 +105,14 @@ export class FrameProcessor {
       for (let y = 0; y < halfHeight; y++) {
         const sourceOffset = y * config.display.width * 4;
         const destOffset = y * config.display.width * 4;
-        frame.copy(display1Frame, destOffset, sourceOffset, sourceOffset + config.display.width * 4);
+        finalFrame.copy(display1Frame, destOffset, sourceOffset, sourceOffset + config.display.width * 4);
       }
 
       // Copy bottom half to display2
       for (let y = 0; y < halfHeight; y++) {
         const sourceOffset = (y + halfHeight) * config.display.width * 4;
         const destOffset = y * config.display.width * 4;
-        frame.copy(display2Frame, destOffset, sourceOffset, sourceOffset + config.display.width * 4);
+        finalFrame.copy(display2Frame, destOffset, sourceOffset, sourceOffset + config.display.width * 4);
       }
 
       mqttPublisher.publishDualFrames(display1Frame, display2Frame).catch(err => {

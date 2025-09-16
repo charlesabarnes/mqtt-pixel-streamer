@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=128, height=64, initial-scale=1.0, user-scalable=no">
+    <title>Fish Tank - LED Dashboard</title>
+    <link rel="stylesheet" href="../public/css/led-display.css">
+    <style>
+        /* Force pixel-perfect rendering for LED display */
+        * {
+            -webkit-font-smoothing: none !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            font-smooth: never !important;
+            text-rendering: optimizeSpeed !important;
+            font-variant-ligatures: none !important;
+        }
+
+        body {
+            -webkit-font-smoothing: none !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            font-smooth: never !important;
+            text-rendering: optimizeSpeed !important;
+            background: #000033;
+        }
+
+        /* Fish tank canvas - full display */
+        #fish-tank-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 128px;
+            height: 64px;
+            background: linear-gradient(to bottom, #004466, #001122);
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+
+        /* Ensure exact 128x64 viewport */
+        html, body {
+            width: 128px;
+            height: 64px;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Fish Tank Canvas (Full 128x64) -->
+    <canvas id="fish-tank-canvas" width="128" height="64"></canvas>
+
+    <script src="../public/js/fishtank.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Fish Tank Dashboard loaded');
+
+            if (window.fishTank) {
+                window.fishTank.init();
+            }
+        });
+
+        // Handle visibility changes (pause when hidden)
+        document.addEventListener('visibilitychange', function() {
+            if (window.fishTank) {
+                if (document.hidden) {
+                    console.log('Fish tank dashboard hidden - pausing animation');
+                    window.fishTank.pause();
+                } else {
+                    console.log('Fish tank dashboard visible - resuming animation');
+                    window.fishTank.resume();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

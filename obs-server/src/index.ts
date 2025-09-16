@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 
 // Status endpoint
-app.get('/api/status', (req, res) => {
+app.get('/api/status', (_req, res) => {
   res.json({
     mqtt: mqttPublisher.getStats(),
     rtmp: rtmpServer.getStatus(),
@@ -23,7 +23,7 @@ app.get('/api/status', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -44,7 +44,7 @@ const server = app.listen(config.server.port, () => {
 ║     Settings -> Video                                            ║
 ║     Base Resolution: ${config.display.width}x${config.display.height}                               ║
 ║     Output Resolution: ${config.display.width}x${config.display.height}                             ║
-║     FPS: 30                                                       ║
+║     FPS: 75 (recommended for fish tank animations)              ║
 ║                                                                   ║
 ║  📡 MQTT Output:                                                  ║
 ║     Broker: ${config.mqtt.broker}                    ║

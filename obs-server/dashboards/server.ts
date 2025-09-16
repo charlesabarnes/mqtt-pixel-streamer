@@ -26,6 +26,18 @@ app.get('/dashboard/sports-scores', (req, res) => {
   res.sendFile(path.join(__dirname, 'pages', 'sports-scores.html'));
 });
 
+app.get('/dashboard/matrix-effect', (req, res) => {
+  res.sendFile(path.join(__dirname, 'pages', 'matrix-effect.html'));
+});
+
+app.get('/dashboard/stock-ticker', (req, res) => {
+  res.sendFile(path.join(__dirname, 'pages', 'stock-ticker.html'));
+});
+
+app.get('/dashboard/fish-tank', (req, res) => {
+  res.sendFile(path.join(__dirname, 'pages', 'fish-tank.html'));
+});
+
 // Weather API endpoint
 app.get('/api/weather', async (req, res) => {
   try {
@@ -84,6 +96,21 @@ app.get('/', (req, res) => {
         name: 'Sports Scores',
         url: `/dashboard/sports-scores`,
         description: 'Live sports scores cycling through active games'
+      },
+      {
+        name: 'Matrix Effect',
+        url: `/dashboard/matrix-effect`,
+        description: 'Animated matrix-style digital rain effect'
+      },
+      {
+        name: 'Stock Ticker',
+        url: `/dashboard/stock-ticker`,
+        description: 'Scrolling stock prices with live updates and colors'
+      },
+      {
+        name: 'Fish Tank',
+        url: `/dashboard/fish-tank`,
+        description: 'Animated aquarium with swimming fish, bubbles, and plants at 75fps'
       }
     ],
     display: {
