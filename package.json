@@ -1,22 +1,38 @@
 {
-  "name": "mqtt-pixel-streamer",
-  "version": "1.0.0",
-  "description": "Full-stack application for creating and streaming LED display templates via MQTT",
-  "private": true,
-  "workspaces": [
-    "server",
-    "client"
-  ],
+  "name": "obs-pixel-streamer",
+  "version": "2.0.0",
+  "description": "Simple OBS to MQTT pixel streamer for LED matrix",
+  "main": "dist/index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "npm run dev -w server",
-    "dev:client": "npm run dev -w client -- --host",
-    "build": "npm run build -w server && npm run build -w client",
-    "start": "npm run start -w server"
+    "dev": "nodemon",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "mqtt": "^5.3.5",
+    "node-media-server": "^2.6.4"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@types/express": "^4.17.21",
+    "@types/fluent-ffmpeg": "^2.1.24",
+    "@types/node": "^20.10.5",
+    "@types/node-media-server": "^2.3.7",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
+  "keywords": [
+    "obs",
+    "mqtt",
+    "led-matrix",
+    "pixel-streamer",
+    "rtmp"
+  ],
+  "author": "",
+  "license": "MIT",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
